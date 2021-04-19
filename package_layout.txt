@@ -1,0 +1,48 @@
+* id
++ name
+* package_base (git url)
+check_md5sum
+should_ignore
+filename
+base
++ version
+origin
++ desc
++ url
+* votes
+* popularity
+* out_of_date
+build_date
+install_date
+* maintainer
+* first_submitted
+* last_modified
+* url_path (download tarball)
+packager
+sha256sum
+arch
+size
+isize
+reason
+validation
++ licenses (*-s)
++ groups
++ depends
++ optdepends
++ checkdepends
++ makedepends
++ conflicts
++ provides
++ replaces
+files
+backup
+db
+changelog
+(mtree)
+required_by
+optional_for
+base64_sig
+has_scriptlet
+* keywords
+
+id

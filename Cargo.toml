@@ -1,0 +1,31 @@
+[package]
+name = "archer"
+version = "0.1.0"
+authors = ["PhotonQuantum <self@lightquantum.me>"]
+edition = "2018"
+
+[lib]
+name = "archer_lib"
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "archer_bin"
+path = "src/bin/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = {version="1.4", features=["full"]}
+raur = "5.0"
+alpm = "1.1"
+anyhow = "1.0"
+thiserror = "1.0"
+configparser = "2.0"
+chrono = "0.4"
+url = "2.2"
+indexmap = "1.6"
+async-trait = "0.1"
+futures = "0.3"
+ranges = "0.3"
+fallible-iterator = "0.2"
+itertools = "0.10"
