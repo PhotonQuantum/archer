@@ -132,9 +132,9 @@ impl PackageTrait for PackageWithParent {
 // TODO refactor its ctor
 #[derive(Default, Clone)]
 pub struct ResolvePolicy {
-    pub from_repo: Vec<Arc<Mutex<dyn Repository>>>,
-    pub skip_repo: Vec<Arc<Mutex<dyn Repository>>>,
-    pub immortal_repo: Vec<Arc<Mutex<dyn Repository>>>
+    pub from_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
+    pub skip_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
+    pub immortal_repo: Vec<Arc<Mutex<dyn Repository + Send>>>
 }
 
 #[derive(Debug, Default, Clone)]
@@ -142,6 +142,22 @@ pub struct DepList<T: PackageTrait> {
     pub packages: IndexMap<String, Arc<Box<T>>>,
     pub conflicts: HashMap<String, Arc<Box<DependVersion>>>,
     pub provides: HashMap<String, Arc<Box<DependVersion>>>,
+}
+
+impl<T: PackageTrait> PartialEq for DepList<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.packages == other.packages
+    }
+}
+
+impl<T: PackageTrait> Eq for DepList<T> {}
+
+impl<T: PackageTrait> Hash for DepList<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (_, package) in &self.packages{
+            package.hash(state);
+        }
+    }
 }
 
 impl<T: PackageTrait> DepList<T> {

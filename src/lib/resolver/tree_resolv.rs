@@ -6,67 +6,111 @@ use fallible_iterator::{convert, FallibleIterator};
 use futures::TryStreamExt;
 use std::sync::{Arc, Mutex};
 use itertools::{Product, Itertools};
+use std::collections::{HashMap, HashSet};
 
 type Solution = DepList<PackageWithParent>;
 
-pub fn tree_resolve(base: Solution, policy: ResolvePolicy, pkg: Depend, allow_cyclic: bool) -> ArcedIterator<Result<Solution>> {
-    println!("solving for - {}", pkg.name);
-    let bases = policy.from_repo.iter().map(|_|base.clone()).collect_vec();
-    let policies = policy.from_repo.iter().map(|_|policy.clone()).collect_vec();
-    let base_policy_fr = policy.from_repo.clone();
-    ArcedIterator::new(Arc::new(Mutex::new(base_policy_fr.into_iter().enumerate().map(move |(i, repo)|(bases[i].clone(), policies[i].clone(), repo)).map(
-        move |(base, mut policy, repo)| {
-            let found_package = {
-                repo.lock().unwrap().find_package(&pkg.name)
-            };
-            match found_package{
-                Ok(pkg) => {
-                    let solution = Arc::new(Mutex::new(pkg.into_iter().map(PackageWithParent::from).map(move |candidate|
-                        if base.contains_exact(&candidate) {
-                            println!("Great! {} is already satisfied.", candidate);
-                            ArcedIterator::new(Arc::new(Mutex::new(vec![Ok(base.clone())].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
-                        } else if !base.is_compatible(&candidate) {
-                            // ensure that this package is compatible with base
-                            println!("However, {} conflicts with current solution", candidate);
-                            ArcedIterator::new(Arc::new(Mutex::new(vec![].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
-                        } else {
-                            match convert(policy.immortal_repo.iter_mut().map(Ok)).any(|repo: &mut Arc<Mutex<dyn Repository>>| {
-                                Ok(repo
-                                    .lock()
-                                    .unwrap()
-                                    .find_package(&candidate.name())?
-                                    .into_iter()
-                                    .any(|immortal| immortal.version() != candidate.version()))
-                            }) {
-                                Ok(conflict) => if conflict {
-                                    // ensure that package won't conflict with immortal set (we won't need to uninstall any immortal package)
-                                    println!("However, {} conflicts with immortal packages.", candidate);
-                                    ArcedIterator::new(Arc::new(Mutex::new(vec![].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
-                                } else {
-                                    let mut dep_solutions: Vec<_> = candidate.dependencies().into_iter().map(|dep: Depend| {
-                                        println!("Trying to solve dependency of {} - {}", candidate, dep);
-                                        tree_resolve(base.clone(), policy.clone(), dep, allow_cyclic)
-                                    }).collect();
-                                    if dep_solutions.is_empty() {
-                                        dep_solutions.push(ArcedIterator::new(Arc::new(Mutex::new(vec![Ok(DepList::new())].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>));
-                                    }
-                                    println!("Dependency solving yields solutions {} for {}", dep_solutions.len(), candidate);
-                                    let base = base.clone();
-                                    let merged_dep_solution = dep_solutions.into_iter().multi_cartesian_product().map(move |i| i.into_iter().fold(Ok(base.clone()), |acc: Result<Solution>, x: Result<Solution>| {
-                                        // println!("merging {:?} and {:?}", acc, x);
-                                        acc.and_then(|acc|x.and_then(|x|acc.union(x).ok_or(Error::NoneError)))
-                                    })).filter(|solution|!(matches!(solution, Err(Error::NoneError))));
-                                    let candidate = Arc::new(Box::new(candidate));
-                                    let final_solution = merged_dep_solution.map(move |solution|solution.map(|solution|solution.insert(candidate.clone()).unwrap()));
-                                    ArcedIterator::new(Arc::new(Mutex::new(final_solution)) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
-                                }
-                                Err(e) => ArcedIterator::new(Arc::new(Mutex::new(vec![Err(e)].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
-                            }
-                        }).flatten())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>;
-                    ArcedIterator::new(solution)
-                },
-                Err(e) => ArcedIterator::new(Arc::new(Mutex::new(vec![Err(e)].into_iter())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+struct CacheUnit {
+    base: Solution,
+    dep: Depend
+}
+
+#[derive(Clone)]
+pub struct TreeResolver {
+    policy: ResolvePolicy,
+    allow_cyclic: bool,
+    cache: HashMap<CacheUnit, Vec<Result<Solution>>>,
+    visited: HashSet<Depend>
+}
+
+impl TreeResolver {
+    pub fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
+        TreeResolver { policy, allow_cyclic, cache: HashMap::new(), visited: Default::default() }
+    }
+
+    pub fn initialize(&mut self) {
+        self.visited.clear()
+    }
+
+    pub fn clear_cache(&mut self) {
+        self.cache.clear()
+    }
+
+    pub fn resolve(&mut self, base: Solution, pkg: Depend, mut visited: HashSet<Depend>, cur_depth: u64) -> Vec<Result<Solution>> {
+        // println!("solving for - {} - {}", pkg.name, cur_depth);
+        if visited.contains(&pkg) {
+            if !self.allow_cyclic {
+                vec![Err(Error::DependencyError(DependencyError::CyclicDependency))]
+            } else {
+                println!("cyclic dependency detected.");
+                vec![Ok(base)]
             }
+        } else {
+            visited.insert(pkg.clone());
+            let cache_unit = CacheUnit { base: base.clone(), dep: pkg.clone() };
+            if let Some(cached_solution) = self.cache.get(&cache_unit) {
+                return cached_solution.clone();
+            }
+            let result = self.policy.from_repo.clone().into_iter().map(
+                |repo| {
+                    let found_package = {
+                        repo.lock().unwrap().find_package(&pkg.name)
+                    };
+                    match found_package {
+                        Ok(pkgs) => {
+                            let solution = pkgs.into_iter().map(PackageWithParent::from).map(|candidate|
+                                if base.contains_exact(&candidate) {
+                                    println!("Great! {} is already satisfied.", candidate);
+                                    vec![Ok(base.clone())]
+                                } else if !base.is_compatible(&candidate) {
+                                    // ensure that this package is compatible with base
+                                    println!("However, {} conflicts with current solution", candidate);
+                                    vec![]
+                                } else {
+                                    match convert(self.policy.immortal_repo.iter_mut().map(Ok)).any(|repo: &mut Arc<Mutex<dyn Repository + Send>>| {
+                                        Ok(repo
+                                            .lock()
+                                            .unwrap()
+                                            .find_package(&candidate.name())?
+                                            .into_iter()
+                                            .any(|immortal| immortal.version() != candidate.version()))
+                                    }) {
+                                        Ok(conflict) => if conflict {
+                                            // ensure that package won't conflict with immortal set (we won't need to uninstall any immortal package)
+                                            println!("However, {} conflicts with immortal packages.", candidate);
+                                            vec![]
+                                        } else {
+                                            let mut dep_solutions: Vec<_> = candidate.dependencies().into_iter().map(|dep: Depend| {
+                                                // println!("Trying to solve dependency of {} - {}", candidate, dep);
+                                                self.resolve(base.clone(), dep, visited.clone(), cur_depth + 1)
+                                            }).collect();
+                                            if dep_solutions.is_empty() {
+                                                dep_solutions.push(vec![Ok(DepList::new())]);
+                                            }
+                                            let base = base.clone();
+                                            let merged_dep_solution = dep_solutions.into_iter().multi_cartesian_product().map(move |i| i.into_iter().fold(Ok(base.clone()), |acc: Result<Solution>, x: Result<Solution>| {
+                                                // println!("merging {:?} and {:?}", acc, x);
+                                                acc.and_then(|acc| x.and_then(|x| acc.union(x).ok_or(Error::NoneError)))
+                                            })).filter(|solution| !(matches!(solution, Err(Error::NoneError))));
+                                            let candidate = Arc::new(Box::new(candidate));
+                                            let final_solution = merged_dep_solution.map(move |solution| solution.map(|mut solution| {
+                                                solution.insert_mut(candidate.clone());
+                                                solution
+                                            }));
+                                            final_solution.take(1).collect_vec()  // beam width: 3
+                                        }
+                                        Err(e) => vec![Err(e)]
+                                    }
+                                }).flatten().collect_vec();
+                            solution
+                        }
+                        Err(e) => vec![Err(e)]
+                    }
+                }
+            ).flatten().collect_vec();
+            self.cache.insert(cache_unit, result.clone());
+            result
         }
-    ).flatten())) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
+    }
 }

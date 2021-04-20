@@ -133,7 +133,6 @@ impl<'a> From<alpm::DepModVer<'a>> for DependVersion {
 pub struct Depend {
     pub name: String,
     pub version: DependVersion,
-    pub description: Option<String>,
 }
 
 impl Display for Depend {
@@ -146,7 +145,6 @@ impl From<Package> for Depend {
     fn from(pkg: Package) -> Self {
         Self {
             name: pkg.name().to_string(),
-            description: None,
             version: DependVersion(Ranges::from(pkg.version()))
         }
     }
@@ -156,7 +154,6 @@ impl From<&Package> for Depend {
     fn from(pkg: &Package) -> Self {
         Self {
             name: pkg.name().to_string(),
-            description: None,
             version: DependVersion(Ranges::from(pkg.version()))
         }
     }
@@ -167,7 +164,6 @@ impl Depend {
         // TODO parse aur str
         Self {
             name: s.to_string(),
-            description: None,
             version: DependVersion(Ranges::full()),
         }
     }
@@ -177,7 +173,6 @@ impl<'a> From<alpm::Dep<'a>> for Depend {
     fn from(dep: Dep<'a>) -> Self {
         Self {
             name: dep.name().to_string(),
-            description: Some(dep.desc().to_string()),
             version: dep.depmodver().into(),
         }
     }
@@ -264,7 +259,7 @@ impl From<&PacmanPackage<'_>> for OwnedPacmanPackage {
             checkdepends: vec![],
             makedepends: vec![],
             conflicts: pkg.conflicts().iter().map(Depend::from).collect(),
-            provides: vec![],
+            provides: pkg.provides().iter().map(Depend::from).collect(),
             replaces: vec![],
             files: vec![],
             backup: vec![],
@@ -281,6 +276,20 @@ impl From<&PacmanPackage<'_>> for OwnedPacmanPackage {
 pub enum Package {
     PacmanPackage(OwnedPacmanPackage),
     AurPackage(AurPackage),
+}
+
+impl PartialOrd for Package {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        use Package::*;
+        (self.name() == other.name()).then(||match self.version().cmp(&other.version()) {
+            Ordering::Equal => match (self, other) {
+                (PacmanPackage(_), AurPackage(_)) => Ordering::Greater,
+                (AurPackage(_), PacmanPackage(_)) => Ordering::Less,
+                _ => other.dependencies().len().cmp(&self.dependencies().len())
+            },
+            ord => ord
+        })
+    }
 }
 
 impl AsRef<Package> for Package {
@@ -381,7 +390,7 @@ impl Package {
     }
 }
 
-pub trait PackageTrait: Eq + AsRef<Package> + Display {
+pub trait PackageTrait: Eq + AsRef<Package> + Display + Hash + Clone {
     fn name(&self) -> &str;
 
     fn version(&self) -> Version;
