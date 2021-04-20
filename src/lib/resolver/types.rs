@@ -1,24 +1,22 @@
 use crate::error::{DependencyError, Result};
+use crate::repository::Repository;
 use crate::types::*;
 use indexmap::{IndexMap, IndexSet};
 use ranges::Ranges;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-use crate::repository::Repository;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct ArcedIterator<I> {
-    inner: Arc<Mutex<dyn Iterator<Item=I>>>
+    inner: Arc<Mutex<dyn Iterator<Item = I>>>,
 }
 
 impl<I> ArcedIterator<I> {
-    pub fn new(iter: Arc<Mutex<dyn Iterator<Item=I>>>) -> Self {
-        Self {
-            inner: iter
-        }
+    pub fn new(iter: Arc<Mutex<dyn Iterator<Item = I>>>) -> Self {
+        Self { inner: iter }
     }
 }
 
@@ -34,14 +32,14 @@ impl<I> Iterator for ArcedIterator<I> {
 pub struct PackageWithParent {
     data: Package,
     // parent: Option<Arc<Box<PackageWithParent>>>
-    parent: Option<Depend>
+    parent: Option<Depend>,
 }
 
 impl PackageWithParent {
     pub fn with_parent(self, parent: Depend) -> Self {
         Self {
             data: self.data,
-            parent: Some(parent)
+            parent: Some(parent),
         }
     }
 }
@@ -76,7 +74,7 @@ impl From<Package> for PackageWithParent {
     fn from(pkg: Package) -> Self {
         Self {
             data: pkg,
-            parent: None
+            parent: None,
         }
     }
 }
@@ -134,7 +132,7 @@ impl PackageTrait for PackageWithParent {
 pub struct ResolvePolicy {
     pub from_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
     pub skip_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
-    pub immortal_repo: Vec<Arc<Mutex<dyn Repository + Send>>>
+    pub immortal_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -154,7 +152,7 @@ impl<T: PackageTrait> Eq for DepList<T> {}
 
 impl<T: PackageTrait> Hash for DepList<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for (_, package) in &self.packages{
+        for (_, package) in &self.packages {
             package.hash(state);
         }
     }
@@ -166,7 +164,7 @@ impl<T: PackageTrait> DepList<T> {
             if let Some(v1) = self.packages.get(&k) {
                 if *v1 != v2 {
                     eprint!("FATAL: {} != {}", v1, v2);
-                    return None
+                    return None;
                 }
             }
             self.packages.insert(k, v2);
@@ -193,7 +191,7 @@ impl<T: PackageTrait> DepList<T> {
         Self {
             packages: Default::default(),
             conflicts: Default::default(),
-            provides: Default::default()
+            provides: Default::default(),
         }
     }
     pub fn get(&self, name: &str) -> Option<&T> {
@@ -228,7 +226,7 @@ impl<T: PackageTrait> DepList<T> {
         !(name_conflict || conflicts_conflict || provides_conflict)
     }
     pub fn insert(mut self, pkg: Arc<Box<T>>) -> Option<Self> {
-        self.insert_mut(pkg).then(||self)
+        self.insert_mut(pkg).then(|| self)
     }
     pub fn insert_mut(&mut self, pkg: Arc<Box<T>>) -> bool {
         // TODO unchecked insert
@@ -250,8 +248,9 @@ impl<T: PackageTrait> DepList<T> {
                     .insert(provide.name, Arc::new(Box::new(depend_version)));
             }
 
-            for conflict in pkg.conflicts(){
-                let conflict_version = if let Some(pkg) = self.conflicts.get(conflict.name.as_str()) {
+            for conflict in pkg.conflicts() {
+                let conflict_version = if let Some(pkg) = self.conflicts.get(conflict.name.as_str())
+                {
                     pkg.union(&conflict.version)
                 } else {
                     conflict.version

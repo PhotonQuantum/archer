@@ -4,16 +4,16 @@ use crate::repository::Repository;
 use crate::types::*;
 use fallible_iterator::{convert, FallibleIterator};
 use futures::TryStreamExt;
-use std::sync::{Arc, Mutex};
-use itertools::{Product, Itertools};
+use itertools::{Itertools, Product};
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 type Solution = DepList<PackageWithParent>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct CacheUnit {
     base: Solution,
-    dep: Depend
+    dep: Depend,
 }
 
 #[derive(Clone)]
@@ -21,12 +21,17 @@ pub struct TreeResolver {
     policy: ResolvePolicy,
     allow_cyclic: bool,
     cache: HashMap<CacheUnit, Vec<Result<Solution>>>,
-    visited: HashSet<Depend>
+    visited: HashSet<Depend>,
 }
 
 impl TreeResolver {
     pub fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
-        TreeResolver { policy, allow_cyclic, cache: HashMap::new(), visited: Default::default() }
+        TreeResolver {
+            policy,
+            allow_cyclic,
+            cache: HashMap::new(),
+            visited: Default::default(),
+        }
     }
 
     pub fn initialize(&mut self) {
@@ -37,24 +42,35 @@ impl TreeResolver {
         self.cache.clear()
     }
 
-    pub fn resolve(&mut self, base: Solution, pkg: Depend, mut visited: HashSet<Depend>, cur_depth: u64) -> Vec<Result<Solution>> {
+    pub fn resolve(
+        &mut self,
+        base: Solution,
+        pkg: Depend,
+        mut visited: HashSet<Depend>,
+        cur_depth: u64,
+    ) -> Vec<Result<Solution>> {
         // println!("solving for - {} - {}", pkg.name, cur_depth);
         if visited.contains(&pkg) {
             if !self.allow_cyclic {
-                vec![Err(Error::DependencyError(DependencyError::CyclicDependency))]
+                vec![Err(Error::DependencyError(
+                    DependencyError::CyclicDependency,
+                ))]
             } else {
                 println!("cyclic dependency detected.");
                 vec![Ok(base)]
             }
         } else {
             visited.insert(pkg.clone());
-            let cache_unit = CacheUnit { base: base.clone(), dep: pkg.clone() };
+            let cache_unit = CacheUnit {
+                base: base.clone(),
+                dep: pkg.clone(),
+            };
             if let Some(cached_solution) = self.cache.get(&cache_unit) {
                 return cached_solution.clone();
             }
-            let result = self.policy.from_repo.clone().into_iter().fold(None,
+            let result = self.policy.from_repo.clone().into_iter().fold(vec![],
                 |acc, repo| {
-                    if acc.is_some() {
+                    if !acc.is_empty() {
                         return acc
                     }
                     let found_package = {
@@ -110,9 +126,9 @@ impl TreeResolver {
                         }
                         Err(e) => vec![Err(e)]
                     };
-                    Some(solution)
+                    solution
                 }
-            ).unwrap_or_default();
+            );
             self.cache.insert(cache_unit, result.clone());
             result
         }

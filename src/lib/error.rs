@@ -15,7 +15,7 @@ pub enum DependencyError {
     #[error("conflict dependency - {0}")]
     DependencyConflict(String),
     #[error("cyclic dependency")]
-    CyclicDependency
+    CyclicDependency,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -30,7 +30,7 @@ pub enum Error {
     #[error("dependency error: {0}")]
     DependencyError(#[from] DependencyError),
     #[error("internal representation for None, and shouldn't be returned to end user. fire a bug if you see this.")]
-    NoneError
+    NoneError,
 }
 
 pub fn op_to_res<T>(v: Option<T>) -> Result<T> {

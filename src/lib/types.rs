@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::resolver::types::PackageWithParent;
 pub use alpm::Package as PacmanPackage;
 use alpm::{Dep, DepModVer};
 use ranges::{Domain, GenericRange, Ranges};
@@ -6,7 +7,6 @@ pub use raur::Package as AurPackage;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use crate::resolver::types::PackageWithParent;
 use std::ops::Deref;
 
 macro_rules! option_owned {
@@ -145,7 +145,7 @@ impl From<Package> for Depend {
     fn from(pkg: Package) -> Self {
         Self {
             name: pkg.name().to_string(),
-            version: DependVersion(Ranges::from(pkg.version()))
+            version: DependVersion(Ranges::from(pkg.version())),
         }
     }
 }
@@ -154,7 +154,7 @@ impl From<&Package> for Depend {
     fn from(pkg: &Package) -> Self {
         Self {
             name: pkg.name().to_string(),
-            version: DependVersion(Ranges::from(pkg.version()))
+            version: DependVersion(Ranges::from(pkg.version())),
         }
     }
 }
@@ -281,13 +281,13 @@ pub enum Package {
 impl PartialOrd for Package {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         use Package::*;
-        (self.name() == other.name()).then(||match self.version().cmp(&other.version()) {
+        (self.name() == other.name()).then(|| match self.version().cmp(&other.version()) {
             Ordering::Equal => match (self, other) {
                 (PacmanPackage(_), AurPackage(_)) => Ordering::Greater,
                 (AurPackage(_), PacmanPackage(_)) => Ordering::Less,
-                _ => other.dependencies().len().cmp(&self.dependencies().len())
+                _ => other.dependencies().len().cmp(&self.dependencies().len()),
             },
-            ord => ord
+            ord => ord,
         })
     }
 }

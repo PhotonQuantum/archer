@@ -6,7 +6,7 @@ use alpm::{Alpm, SigLevel};
 use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
 
-lazy_static!{
+lazy_static! {
     pub static ref GLOBAL_ALPM: Arc<Mutex<alpm::Alpm>> = {
         let alpm = Alpm::new(ROOT_PATH, PACMAN_DB_PATH).unwrap();
         for db in GLOBAL_CONFIG.sync_dbs() {
