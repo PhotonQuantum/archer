@@ -381,7 +381,7 @@ impl Package {
     }
 }
 
-pub trait PackageTrait: PartialEq + AsRef<Package> {
+pub trait PackageTrait: Eq + AsRef<Package> + Display {
     fn name(&self) -> &str;
 
     fn version(&self) -> Version;

@@ -132,29 +132,46 @@ impl PackageTrait for PackageWithParent {
 // TODO refactor its ctor
 #[derive(Default, Clone)]
 pub struct ResolvePolicy {
-    pub from_repo: Vec<Arc<dyn Repository>>,
-    pub skip_repo: Vec<Arc<dyn Repository>>,
-    pub immortal_repo: Vec<Arc<dyn Repository>>
+    pub from_repo: Vec<Arc<Mutex<dyn Repository>>>,
+    pub skip_repo: Vec<Arc<Mutex<dyn Repository>>>,
+    pub immortal_repo: Vec<Arc<Mutex<dyn Repository>>>
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct DepList<T: PackageTrait> {
-    packages: IndexMap<String, Arc<Box<T>>>,
-    conflicts: HashMap<String, Arc<Box<DependVersion>>>,
-    provides: HashMap<String, Arc<Box<DependVersion>>>,
+    pub packages: IndexMap<String, Arc<Box<T>>>,
+    pub conflicts: HashMap<String, Arc<Box<DependVersion>>>,
+    pub provides: HashMap<String, Arc<Box<DependVersion>>>,
 }
 
 impl<T: PackageTrait> DepList<T> {
     pub fn union(mut self, other: Self) -> Option<Self> {
-        todo!()
-        // other.packages.iter().fold(self.packages, |mut m, (k, v2)|{
-        //     m.insert(k.clone(), self.packages.get(k).map(|v1|))
-        // })
-        // Self{
-        //     packages: Default::default(),
-        //     conflicts: self.conflicts,
-        //     provides: Default::default()
-        // }
+        for (k, v2) in other.packages {
+            if let Some(v1) = self.packages.get(&k) {
+                if *v1 != v2 {
+                    eprint!("FATAL: {} != {}", v1, v2);
+                    return None
+                }
+            }
+            self.packages.insert(k, v2);
+        }
+        for (k, v2) in other.provides {
+            let v = if let Some(v1) = self.provides.get(&k) {
+                Arc::new(Box::new(v1.union(&**v2)))
+            } else {
+                v2
+            };
+            self.provides.insert(k, v);
+        }
+        for (k, v2) in other.conflicts {
+            let v = if let Some(v1) = self.conflicts.get(&k) {
+                Arc::new(Box::new(v1.intersect(&**v2)))
+            } else {
+                v2
+            };
+            self.conflicts.insert(k, v);
+        }
+        Some(self)
     }
     pub fn new() -> Self {
         Self {

@@ -37,6 +37,7 @@ dependencies = [
  "futures",
  "indexmap",
  "itertools",
+ "lazy_static",
  "ranges",
  "raur",
  "thiserror",

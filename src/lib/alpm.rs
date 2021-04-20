@@ -3,6 +3,11 @@ use crate::error::Result;
 use crate::parser::pacman::SyncDB;
 use crate::parser::PacmanParser;
 use alpm::Alpm;
+use lazy_static::lazy_static;
+
+lazy_static!{
+    static ref GLOBAL_ALPM_LOCAL: alpm::Alpm = Alpm::new(ROOT_PATH, PACMAN_DB_PATH).unwrap()
+}
 
 #[derive(Clone)]
 pub struct AlpmBuilder {

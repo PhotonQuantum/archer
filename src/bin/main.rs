@@ -8,6 +8,8 @@ use archer_lib::repository::{pacman, Repository};
 use archer_lib::types::{OwnedPacmanPackage, Depend};
 use archer_lib::resolver::types::{ResolvePolicy, DepList};
 use archer_lib::resolver::tree_resolv::tree_resolve;
+use std::sync::{Arc, Mutex};
+use itertools::Itertools;
 
 fn main() -> Result<()> {
     let config = PacmanParser::with_default()?;
@@ -16,11 +18,11 @@ fn main() -> Result<()> {
     let builder = AlpmBuilder::new(&config);
     let local_repo = PacmanRemote::new(builder);
     let policy = ResolvePolicy {
-        from_repo: vec![Box::new(remote_repo)],
-        skip_repo: vec![Box::new(local_repo.clone())],
-        immortal_repo: vec![Box::new(local_repo)]
+        from_repo: vec![Arc::new(Mutex::new(remote_repo))],
+        skip_repo: vec![Arc::new(Mutex::new(local_repo.clone()))],
+        immortal_repo: vec![Arc::new(Mutex::new(local_repo))]
     };
-    let solution = tree_resolve(DepList::new(), &policy, &Depend::from_str("m4"), true)?;
-    println!("{:#?}", solution);
+    let solution = tree_resolve(DepList::new(), policy, Depend::from_str("m4"), true);
+    println!("{:#?}", solution.map(|sol|sol.map(|sol| sol.packages.values().map(|pkg|pkg.to_string()).join(", "))).collect_vec());
     Ok(())
 }
