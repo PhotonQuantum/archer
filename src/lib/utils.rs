@@ -1,8 +1,8 @@
+use alpm::Alpm;
+
 use crate::consts::*;
 use crate::error::Result;
 use crate::parser::PacmanParser;
-use alpm::Alpm;
-use fallible_iterator::Convert;
 
 pub fn load_alpm() -> Result<Alpm> {
     let alpm = Alpm::new(ROOT_PATH, PACMAN_DB_PATH)?;

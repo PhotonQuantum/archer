@@ -2,6 +2,8 @@
 #![feature(bool_to_option)]
 #![feature(try_trait)]
 
+pub use utils::load_alpm;
+
 pub mod alpm;
 mod consts;
 mod error;
@@ -10,5 +12,3 @@ pub mod repository;
 pub mod resolver;
 pub mod types;
 mod utils;
-
-pub use utils::load_alpm;

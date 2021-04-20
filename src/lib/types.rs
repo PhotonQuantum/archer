@@ -1,13 +1,13 @@
-use crate::error::Error;
-use crate::resolver::types::PackageWithParent;
+use std::cmp::Ordering;
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
+
 pub use alpm::Package as PacmanPackage;
 use alpm::{Dep, DepModVer};
 use ranges::{Domain, GenericRange, Ranges};
 pub use raur::Package as AurPackage;
-use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
+
+use crate::error::Error;
 
 macro_rules! option_owned {
     ($e: expr) => {

@@ -1,8 +1,10 @@
-use crate::repository::Repository;
-use crate::types::*;
-use raur::blocking::{Handle, Raur};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+
+use raur::blocking::{Handle, Raur};
+
+use crate::repository::Repository;
+use crate::types::*;
 
 #[derive(Debug, Clone)]
 pub struct AurRepo {
@@ -29,7 +31,7 @@ impl Repository for AurRepo {
             let result: Vec<_> = self
                 .handler
                 .search(pkg)
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
                 .map(|p| p.name)
                 .collect();

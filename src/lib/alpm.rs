@@ -1,10 +1,12 @@
+use std::sync::{Arc, Mutex};
+
+use alpm::{Alpm, SigLevel};
+use lazy_static::lazy_static;
+
 use crate::consts::*;
 use crate::error::Result;
 use crate::parser::pacman::SyncDB;
 use crate::parser::{PacmanParser, GLOBAL_CONFIG};
-use alpm::{Alpm, SigLevel};
-use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
 
 lazy_static! {
     pub static ref GLOBAL_ALPM: Arc<Mutex<alpm::Alpm>> = {

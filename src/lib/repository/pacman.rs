@@ -1,13 +1,12 @@
-use crate::alpm::GLOBAL_ALPM;
-use crate::parser::pacman::SyncDB;
-use crate::repository::Repository;
-use crate::types::*;
-use alpm::Alpm;
-use async_trait::async_trait;
-use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use alpm::Alpm;
+
+use crate::alpm::GLOBAL_ALPM;
+use crate::repository::Repository;
+use crate::types::*;
 
 #[derive(Clone)]
 pub struct PacmanRemote {

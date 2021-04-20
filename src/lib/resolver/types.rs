@@ -1,13 +1,13 @@
-use crate::error::{DependencyError, Result};
-use crate::repository::Repository;
-use crate::types::*;
-use indexmap::{IndexMap, IndexSet};
-use ranges::Ranges;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
+
+use indexmap::IndexMap;
+
+use crate::repository::Repository;
+use crate::types::*;
 
 #[derive(Clone)]
 pub struct ArcedIterator<I> {

@@ -1,7 +1,8 @@
-use crate::consts::*;
-use crate::error::ParseError;
 use alpm::SigLevel;
 use configparser::ini::Ini;
+
+use crate::consts::*;
+use crate::error::ParseError;
 
 pub struct Parser {
     config: Ini,
