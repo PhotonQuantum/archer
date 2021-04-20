@@ -52,12 +52,15 @@ impl TreeResolver {
             if let Some(cached_solution) = self.cache.get(&cache_unit) {
                 return cached_solution.clone();
             }
-            let result = self.policy.from_repo.clone().into_iter().map(
-                |repo| {
+            let result = self.policy.from_repo.clone().into_iter().fold(None,
+                |acc, repo| {
+                    if acc.is_some() {
+                        return acc
+                    }
                     let found_package = {
                         repo.lock().unwrap().find_package(&pkg.name)
                     };
-                    match found_package {
+                    let solution = match found_package {
                         Ok(pkgs) => {
                             let solution = pkgs.into_iter().map(PackageWithParent::from).map(|candidate|
                                 if base.contains_exact(&candidate) {
@@ -106,9 +109,10 @@ impl TreeResolver {
                             solution
                         }
                         Err(e) => vec![Err(e)]
-                    }
+                    };
+                    Some(solution)
                 }
-            ).flatten().collect_vec();
+            ).unwrap_or_default();
             self.cache.insert(cache_unit, result.clone());
             result
         }
