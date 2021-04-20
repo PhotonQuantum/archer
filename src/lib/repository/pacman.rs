@@ -1,26 +1,27 @@
-use crate::alpm::AlpmBuilder;
+use crate::alpm::GLOBAL_ALPM;
 use crate::parser::pacman::SyncDB;
 use crate::repository::Repository;
 use crate::types::*;
 use alpm::Alpm;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct PacmanRemote {
-    alpm: AlpmBuilder,
+    alpm: Arc<Mutex<Alpm>>,
     cache: HashMap<String, Vec<Package>>
 }
 
 #[derive(Clone)]
 pub struct PacmanLocal {
-    alpm: AlpmBuilder,
+    alpm: Arc<Mutex<Alpm>>,
     cache: HashMap<String, Vec<Package>>
 }
 
 impl PacmanRemote {
-    pub fn new(alpm: AlpmBuilder) -> Self {
-        Self { alpm, cache: Default::default() }
+    pub fn new() -> Self {
+        Self { alpm: GLOBAL_ALPM.clone(), cache: Default::default() }
     }
 }
 
@@ -31,7 +32,8 @@ impl Repository for PacmanRemote {
         } else {
             let result: Vec<Package> = self
                 .alpm
-                .build_sync()?
+                .lock()
+                .unwrap()
                 .syncdbs()
                 .find_satisfier(pkg)
                 .map(|p| vec![p.into()])
@@ -43,8 +45,8 @@ impl Repository for PacmanRemote {
 }
 
 impl PacmanLocal {
-    pub fn new(alpm: AlpmBuilder) -> Self {
-        Self { alpm, cache: Default::default() }
+    pub fn new() -> Self {
+        Self { alpm: GLOBAL_ALPM.clone(), cache: Default::default() }
     }
 }
 
@@ -55,12 +57,13 @@ impl Repository for PacmanLocal {
         } else {
             Ok(self
                 .alpm
-                .build()?
+                .lock()
+                .unwrap()
                 .localdb()
                 .pkgs()
                 .find_satisfier(pkg)
                 .map(|p| vec![p.into()])
-                .unwrap_or_else(|| vec![]))
+                .unwrap_or_else(Vec::new))
         }
     }
 }

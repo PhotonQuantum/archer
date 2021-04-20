@@ -15,13 +15,12 @@ pub fn tree_resolve(base: Solution, policy: ResolvePolicy, pkg: Depend, allow_cy
     let policies = policy.from_repo.iter().map(|_|policy.clone()).collect_vec();
     let base_policy_fr = policy.from_repo.clone();
     ArcedIterator::new(Arc::new(Mutex::new(base_policy_fr.into_iter().enumerate().map(move |(i, repo)|(bases[i].clone(), policies[i].clone(), repo)).map(
-        move |(base, mut policy, mut repo)| {
+        move |(base, mut policy, repo)| {
             let found_package = {
                 repo.lock().unwrap().find_package(&pkg.name)
             };
             match found_package{
                 Ok(pkg) => {
-                    let base = base.clone();
                     let solution = Arc::new(Mutex::new(pkg.into_iter().map(PackageWithParent::from).map(move |candidate|
                         if base.contains_exact(&candidate) {
                             println!("Great! {} is already satisfied.", candidate);
@@ -57,7 +56,7 @@ pub fn tree_resolve(base: Solution, policy: ResolvePolicy, pkg: Depend, allow_cy
                                         // println!("merging {:?} and {:?}", acc, x);
                                         acc.and_then(|acc|x.and_then(|x|acc.union(x).ok_or(Error::NoneError)))
                                     })).filter(|solution|!(matches!(solution, Err(Error::NoneError))));
-                                    let candidate = Arc::new(Box::new(candidate.clone()));
+                                    let candidate = Arc::new(Box::new(candidate));
                                     let final_solution = merged_dep_solution.map(move |solution|solution.map(|solution|solution.insert(candidate.clone()).unwrap()));
                                     ArcedIterator::new(Arc::new(Mutex::new(final_solution)) as Arc<Mutex<dyn Iterator<Item=Result<Solution>>>>)
                                 }

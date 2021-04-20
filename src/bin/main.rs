@@ -14,15 +14,15 @@ use itertools::Itertools;
 fn main() -> Result<()> {
     let config = PacmanParser::with_default()?;
     let builder = AlpmBuilder::new(&config);
-    let remote_repo = PacmanRemote::new(builder);
+    let remote_repo = PacmanRemote::new();
     let builder = AlpmBuilder::new(&config);
-    let local_repo = PacmanRemote::new(builder);
+    let local_repo = PacmanLocal::new();
     let policy = ResolvePolicy {
         from_repo: vec![Arc::new(Mutex::new(remote_repo))],
         skip_repo: vec![Arc::new(Mutex::new(local_repo.clone()))],
         immortal_repo: vec![Arc::new(Mutex::new(local_repo))]
     };
-    let solution = tree_resolve(DepList::new(), policy, Depend::from_str("m4"), true);
+    let solution = tree_resolve(DepList::new(), policy, Depend::from_str("electron"), true);
     println!("{:#?}", solution.map(|sol|sol.map(|sol| sol.packages.values().map(|pkg|pkg.to_string()).join(", "))).collect_vec());
     Ok(())
 }

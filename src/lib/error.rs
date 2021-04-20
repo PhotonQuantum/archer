@@ -42,6 +42,6 @@ pub fn res_to_resop<T>(v: Result<T>) -> Result<Option<T>> {
     if let Err(Error::NoneError) = v {
         Ok(None)
     } else {
-        v.map(|v|Some(v))
+        v.map(Some)
     }
 }
