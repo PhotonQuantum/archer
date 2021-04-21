@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::prelude::rust_2015::Result::Ok;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
