@@ -2,21 +2,19 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use itertools::Itertools;
-
 use crate::types::*;
 
 pub mod aur;
 pub mod cached;
 pub mod pacman;
+mod merged;
 
 pub trait Repository: Debug + Send + Sync {
     fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
         Ok(self
             .find_packages([pkg].as_ref())?
-            .into_values()
-            .flatten()
-            .collect_vec())
+            .remove(pkg)
+            .unwrap())
     }
     fn find_packages(&self, pkgs: &[&str]) -> Result<HashMap<String, Vec<Package>>>;
 }
