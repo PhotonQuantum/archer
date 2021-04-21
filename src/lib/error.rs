@@ -29,6 +29,8 @@ pub enum Error {
     ParseError(#[from] ParseError),
     #[error("dependency error: {0}")]
     DependencyError(#[from] DependencyError),
+    #[error("max recursion depth exceeded")]
+    RecursionError,
     #[error("internal representation for None, and shouldn't be returned to end user. fire a bug if you see this.")]
     NoneError,
 }

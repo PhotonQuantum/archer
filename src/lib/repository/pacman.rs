@@ -1,11 +1,10 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use alpm::Alpm;
 
 use crate::alpm::GLOBAL_ALPM;
-use crate::repository::Repository;
+use crate::repository::{Repository, sort_pkgs_mut};
 use crate::types::*;
 
 #[derive(Clone)]
@@ -62,27 +61,13 @@ impl Repository for PacmanRemote {
                     p.name() == pkg || p.provides().into_iter().any(|provide| provide.name == pkg)
                 })
                 .collect();
-            result.sort_unstable_by(|a, b| {
-                if a.name() == pkg && b.name() != pkg {
-                    Ordering::Less
-                } else if a.name() != pkg && b.name() == pkg {
-                    Ordering::Greater
-                } else {
-                    match a
-                        .partial_cmp(b)
-                        .unwrap_or_else(|| a.version().cmp(&b.version()))
-                    {
-                        Ordering::Less => Ordering::Greater,
-                        Ordering::Greater => Ordering::Less,
-                        ord => ord,
-                    }
-                }
-            });
+            sort_pkgs_mut(&mut result, pkg);
             self.cache.insert(pkg.to_string(), result.clone());
             Ok(result)
         }
     }
 }
+
 
 impl PacmanLocal {
     pub fn new() -> Self {
