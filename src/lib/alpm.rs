@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use alpm::{Alpm, SigLevel};
+use alpm::Alpm;
 use lazy_static::lazy_static;
 
 use crate::consts::*;

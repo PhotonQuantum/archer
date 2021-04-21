@@ -10,7 +10,7 @@ use crate::types::*;
 #[derive(Debug, Clone)]
 pub struct CachedRepository {
     inner: Arc<dyn Repository>,
-    cache: Arc<RwLock<HashMap<String, Vec<Package>>>>,
+    cache: Arc<RwLock<HashMap<Depend, Vec<Package>>>>,
 }
 
 impl CachedRepository {
@@ -23,7 +23,7 @@ impl CachedRepository {
 }
 
 impl Repository for CachedRepository {
-    fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
+    fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
         // search in cache first
         if let Some(hit) = self.cache.read().unwrap().get(pkg) {
             return Ok(hit.clone());
@@ -33,44 +33,44 @@ impl Repository for CachedRepository {
         self.cache
             .write()
             .unwrap()
-            .insert(pkg.to_string(), missed.clone()); // write back into cache
+            .insert(pkg.clone(), missed.clone()); // write back into cache
         Ok(missed)
     }
 
-    fn find_packages(&self, pkgs: &[&str]) -> Result<HashMap<String, Vec<Package>>> {
+    fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
         // search in cache first
-        let (mut hit_packages, missed_pkgnames) = {
+        let (mut hit_deps, missed_deps) = {
             let cache_read = self.cache.read().unwrap();
-            let hit_packages: HashMap<String, Vec<Package>> = pkgs
+            let hit_deps: HashMap<Depend, Vec<Package>> = pkgs
                 .iter()
-                .filter_map(|pkgname| {
+                .filter_map(|dep| {
                     cache_read
-                        .get(*pkgname)
-                        .map(|pkg| (pkgname.to_string(), pkg.clone()))
+                        .get(dep)
+                        .map(|pkg| (dep.clone(), pkg.clone()))
                 })
                 .collect();
-            let missed_pkgnames = pkgs
+            let missed_deps = pkgs
                 .iter()
-                .filter(|pkgname| !hit_packages.contains_key(**pkgname))
-                .copied()
+                .filter(|pkgname| !hit_deps.contains_key(pkgname))
+                .cloned()
                 .collect_vec();
-            (hit_packages, missed_pkgnames)
+            (hit_deps, missed_deps)
         };
 
         // query missed packages
-        let missed_packages = self.inner.find_packages(&missed_pkgnames)?;
+        let missed_packages = self.inner.find_packages(&missed_deps)?;
 
         // write back into cache
         {
             let mut cache_write = self.cache.write().unwrap();
-            for (name, packages) in &missed_packages {
-                cache_write.insert(name.to_string(), packages.clone());
+            for (dep, packages) in &missed_packages {
+                cache_write.insert(dep.clone(), packages.clone());
             }
         }
 
         // merge hit and missed set
-        hit_packages.extend(missed_packages.into_iter());
+        hit_deps.extend(missed_packages.into_iter());
 
-        Ok(hit_packages)
+        Ok(hit_deps)
     }
 }

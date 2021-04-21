@@ -93,6 +93,7 @@ impl Deref for PackageWithParent {
     }
 }
 
+// TODO don't duplicate this
 impl PackageTrait for PackageWithParent {
     fn name(&self) -> &str {
         self.data.name()
@@ -127,12 +128,47 @@ impl PackageTrait for PackageWithParent {
     }
 }
 
+impl PackageTrait for &PackageWithParent {
+    fn name(&self) -> &str {
+        self.data.name()
+    }
+
+    fn version(&self) -> Version {
+        self.data.version()
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.data.description()
+    }
+
+    fn url(&self) -> Option<&str> {
+        self.data.url()
+    }
+
+    fn dependencies(&self) -> Vec<Depend> {
+        self.data.dependencies()
+    }
+
+    fn conflicts(&self) -> Vec<Depend> {
+        self.data.conflicts()
+    }
+
+    fn provides(&self) -> Vec<Depend> {
+        self.data.provides()
+    }
+
+    fn replaces(&self) -> Vec<Depend> {
+        self.data.replaces()
+    }
+}
+
 // TODO refactor its ctor
-#[derive(Default, Clone)]
+// TODO remove mutex cuz find_package(s) doesn't require mut now
+#[derive(Clone)]
 pub struct ResolvePolicy {
-    pub from_repo: Vec<Arc<Mutex<dyn Repository>>>,
-    pub skip_repo: Vec<Arc<Mutex<dyn Repository>>>,
-    pub immortal_repo: Vec<Arc<Mutex<dyn Repository>>>,
+    pub from_repo: Arc<Mutex<dyn Repository>>,
+    pub skip_repo: Arc<Mutex<dyn Repository>>,
+    pub immortal_repo: Arc<Mutex<dyn Repository>>,
 }
 
 #[derive(Debug, Default, Clone)]

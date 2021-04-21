@@ -7,23 +7,31 @@ use crate::types::*;
 pub mod aur;
 pub mod cached;
 pub mod pacman;
-mod merged;
+pub mod merged;
 
 pub trait Repository: Debug + Send + Sync {
-    fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
-        Ok(self
-            .find_packages([pkg].as_ref())?
-            .remove(pkg)
-            .unwrap())
+    fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>>;
+    fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
+        let mut result = HashMap::new();
+        for pkg in pkgs {
+            match self.find_package(pkg) {
+                Err(e) => {
+                    return Err(e)
+                }
+                Ok(v) => {
+                    result.insert(pkg.clone(), v);
+                }
+            }
+        }
+        Ok(result)
     }
-    fn find_packages(&self, pkgs: &[&str]) -> Result<HashMap<String, Vec<Package>>>;
 }
 
-fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &str) {
+fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &Depend) {
     pkgs.sort_unstable_by(|a, b| {
-        if a.name() == preferred && b.name() != preferred {
+        if a.name() == preferred.name && b.name() != preferred.name {
             Ordering::Less
-        } else if a.name() != preferred && b.name() == preferred {
+        } else if a.name() != preferred.name && b.name() == preferred.name {
             Ordering::Greater
         } else {
             match a
@@ -38,16 +46,11 @@ fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &str) {
     });
 }
 
-fn classify_package<'a>(
-    pkg: Package,
-    preferred_pkgs: &'a [&str],
-) -> impl Iterator<Item = Option<(String, Package)>> + 'a {
-    preferred_pkgs.iter().map(move |pkgname| {
-        (pkg.name() == *pkgname
-            || pkg
-                .provides()
-                .into_iter()
-                .any(|provide| provide.name == *pkgname))
-        .then_some((pkgname.to_string(), pkg.clone()))
+fn classify_package(
+    candidate: Package,
+    target_deps: &[Depend],
+) -> impl Iterator<Item = Option<(Depend, Package)>> + '_ {
+    target_deps.iter().map(move |dep| {
+        dep.satisfied_by(&candidate).then_some((dep.clone(), candidate.clone()))
     })
 }

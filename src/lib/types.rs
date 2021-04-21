@@ -18,6 +18,7 @@ macro_rules! option_owned {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+// TODO figure out a way to handle `epoch` field. see https://wiki.archlinux.org/index.php/PKGBUILD#Version
 #[derive(Debug, Clone)]
 pub struct Version(String);
 
@@ -128,23 +129,24 @@ pub struct Depend {
     pub version: DependVersion,
 }
 
+impl Depend {
+    pub fn satisfied_by(&self, candidate: &Package) -> bool {
+        (candidate.name() == self.name && self.version.satisfied_by(&candidate.version()))
+            || candidate.provides().into_iter().any(|provide| {
+            provide.name == self.name && self.version.contains(&provide.version)
+        })
+    }
+}
+
 impl Display for Depend {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // TODO into arch version format
         write!(f, "{} {}", self.name, self.version.0)
     }
 }
 
-impl From<Package> for Depend {
-    fn from(pkg: Package) -> Self {
-        Self {
-            name: pkg.name().to_string(),
-            version: DependVersion(Ranges::from(pkg.version())),
-        }
-    }
-}
-
-impl From<&Package> for Depend {
-    fn from(pkg: &Package) -> Self {
+impl<T: PackageTrait> From<T> for Depend {
+    fn from(pkg: T) -> Self {
         Self {
             name: pkg.name().to_string(),
             version: DependVersion(Ranges::from(pkg.version())),
@@ -419,37 +421,37 @@ pub trait PackageTrait: Eq + AsRef<Package> + Display + Hash + Clone {
     fn replaces(&self) -> Vec<Depend>;
 }
 
-impl PackageTrait for Package {
+impl PackageTrait for &Package {
     fn name(&self) -> &str {
-        self.name()
+        (**self).name()
     }
 
     fn version(&self) -> Version {
-        self.version()
+        (**self).version()
     }
 
     fn description(&self) -> Option<&str> {
-        self.description()
+        (**self).description()
     }
 
     fn url(&self) -> Option<&str> {
-        self.url()
+        (**self).url()
     }
 
     fn dependencies(&self) -> Vec<Depend> {
-        self.dependencies()
+        (**self).dependencies()
     }
 
     fn conflicts(&self) -> Vec<Depend> {
-        self.conflicts()
+        (**self).conflicts()
     }
 
     fn provides(&self) -> Vec<Depend> {
-        self.provides()
+        (**self).provides()
     }
 
     fn replaces(&self) -> Vec<Depend> {
-        self.replaces()
+        (**self).replaces()
     }
 }
 

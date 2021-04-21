@@ -11,20 +11,24 @@ use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
 use archer_lib::resolver::tree_resolv::TreeResolver;
 use archer_lib::resolver::types::{DepList, ResolvePolicy};
 use archer_lib::types::Depend;
+use archer_lib::repository::Repository;
+use archer_lib::repository::merged::MergedRepository;
 
 fn main() -> Result<()> {
-    let remote_repo = CachedRepository::new(PacmanRemote::new());
-    let local_repo = CachedRepository::new(PacmanLocal::new());
-    let aur = AurRepo::new();
+    let remote_repo = Arc::new(Mutex::new(PacmanRemote::new())) as Arc<Mutex<dyn Repository>>;
+    let local_repo = Arc::new(Mutex::new(PacmanLocal::new())) as Arc<Mutex<dyn Repository>>;
+    let aur = Arc::new(Mutex::new(AurRepo::new())) as Arc<Mutex<dyn Repository>>;
+    let remote_repo = Arc::new(Mutex::new(CachedRepository::new(MergedRepository::new(vec![remote_repo.clone(), aur]))));
     let policy = ResolvePolicy {
-        from_repo: vec![Arc::new(Mutex::new(remote_repo)), Arc::new(Mutex::new(aur))],
-        skip_repo: vec![Arc::new(Mutex::new(local_repo.clone()))],
-        immortal_repo: vec![Arc::new(Mutex::new(local_repo))],
+        from_repo: remote_repo.clone(),
+        skip_repo: Arc::new(Mutex::new(CachedRepository::new(MergedRepository::new(vec![local_repo.clone()])))),
+        immortal_repo: Arc::new(Mutex::new(CachedRepository::new(MergedRepository::new(vec![local_repo])))),
     };
     let mut resolver = TreeResolver::new(policy, true);
+    let initial_package = remote_repo.lock().unwrap().find_package(&Depend::from_str("python2-pillow").unwrap())?.pop().unwrap();
     let solution = resolver.resolve(
         DepList::new(),
-        Depend::from_str("electron").unwrap(),
+        initial_package,
         HashSet::new(),
         0,
     );

@@ -18,12 +18,12 @@ impl AurRepo {
 }
 
 impl Repository for AurRepo {
-    fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
+    fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
         // TODO error handling
         println!("aur searching for {}", pkg);
         let search_result = self
             .handler
-            .search(pkg)
+            .search(&pkg.name)
             .unwrap_or_default()
             .into_iter()
             .map(|p| p.name)
@@ -34,21 +34,19 @@ impl Repository for AurRepo {
             .unwrap()
             .into_iter()
             .map(Package::from)
-            .filter(|p| {
-                p.name() == pkg || p.provides().into_iter().any(|provide| provide.name == pkg)
-            })
-            .collect_vec();
+            .filter(|candidate| pkg.satisfied_by(candidate))
+            .collect();
         sort_pkgs_mut(&mut detailed_info, pkg);
         Ok(detailed_info)
     }
 
-    fn find_packages(&self, pkgs: &[&str]) -> Result<HashMap<String, Vec<Package>>> {
+    fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
         // TODO error handling
-        println!("aur searching for {:?}", pkgs);
+        println!("aur searching for {}", pkgs.iter().join(", "));
         // let search_result: HashMap<String, Vec<Package>> = pkgs.iter().map(|pkgname|self.handler.search(pkgname));
         let search_result = pkgs
             .iter()
-            .map(|pkgname| self.handler.search(pkgname).unwrap_or_default()) // search candidates per package
+            .map(|dep| self.handler.search(&dep.name).unwrap_or_default()) // search candidates per package
             .flatten()
             .map(|p| p.name)
             .collect_vec();
