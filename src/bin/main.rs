@@ -10,10 +10,11 @@ use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
 use archer_lib::resolver::tree_resolv::TreeResolver;
 use archer_lib::resolver::types::{DepList, ResolvePolicy};
 use archer_lib::types::Depend;
+use archer_lib::repository::cached::CachedRepository;
 
 fn main() -> Result<()> {
-    let remote_repo = PacmanRemote::new();
-    let local_repo = PacmanLocal::new();
+    let remote_repo = CachedRepository::new(PacmanRemote::new());
+    let local_repo = CachedRepository::new(PacmanLocal::new());
     let aur = AurRepo::new();
     let policy = ResolvePolicy {
         from_repo: vec![Arc::new(Mutex::new(remote_repo)), Arc::new(Mutex::new(aur))],
