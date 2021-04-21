@@ -1,6 +1,7 @@
 #![feature(box_patterns)]
 #![feature(bool_to_option)]
 #![feature(try_trait)]
+#![feature(never_type)]
 
 pub use utils::load_alpm;
 

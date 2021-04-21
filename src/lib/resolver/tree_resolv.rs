@@ -54,7 +54,9 @@ impl TreeResolver {
         // println!("solving for - {} - {}", pkg.name, cur_depth);
         if visited.contains(&pkg) {
             if !self.allow_cyclic {
-                vec![Err(Error::DependencyError(DependencyError::CyclicDependency))]
+                vec![Err(Error::DependencyError(
+                    DependencyError::CyclicDependency,
+                ))]
             } else {
                 println!("cyclic dependency detected.");
                 vec![Ok(base)]

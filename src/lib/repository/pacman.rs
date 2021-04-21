@@ -22,6 +22,12 @@ pub struct PacmanLocal {
 
 impl PacmanRemote {
     pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl Default for PacmanRemote {
+    fn default() -> Self {
         Self {
             alpm: GLOBAL_ALPM.clone(),
             cache: Default::default(),
@@ -80,6 +86,12 @@ impl Repository for PacmanRemote {
 
 impl PacmanLocal {
     pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl Default for PacmanLocal {
+    fn default() -> Self {
         Self {
             alpm: GLOBAL_ALPM.clone(),
             cache: Default::default(),

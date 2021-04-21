@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -22,7 +23,7 @@ fn main() -> Result<()> {
     let mut resolver = TreeResolver::new(policy, true);
     let solution = resolver.resolve(
         DepList::new(),
-        Depend::from_str("electron"),
+        Depend::from_str("electron").unwrap(),
         HashSet::new(),
         0,
     );

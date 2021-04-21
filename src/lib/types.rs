@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 
 pub use alpm::Package as PacmanPackage;
 use alpm::{Dep, DepModVer};
@@ -65,15 +66,7 @@ impl Ord for Version {
     }
 }
 
-impl Domain for Version {
-    fn is_next_to(&self, other: &Self) -> bool {
-        panic!("continuous type")
-    }
-
-    fn shares_neighbour_with(&self, other: &Self) -> bool {
-        panic!("continuous type")
-    }
-}
+impl Domain for Version {}
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct DependVersion(Ranges<Version>);
@@ -159,13 +152,15 @@ impl From<&Package> for Depend {
     }
 }
 
-impl Depend {
-    pub fn from_str(s: impl ToString) -> Self {
+impl FromStr for Depend {
+    type Err = !;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         // TODO parse aur str
-        Self {
+        Ok(Self {
             name: s.to_string(),
             version: DependVersion(Ranges::full()),
-        }
+        })
     }
 }
 
@@ -364,28 +359,44 @@ impl Package {
     pub fn dependencies(&self) -> Vec<Depend> {
         match self {
             Package::PacmanPackage(pkg) => pkg.depends.clone(),
-            Package::AurPackage(pkg) => pkg.depends.iter().map(Depend::from_str).collect(),
+            Package::AurPackage(pkg) => pkg
+                .depends
+                .iter()
+                .map(|s| Depend::from_str(s).unwrap())
+                .collect(),
         }
     }
 
     pub fn conflicts(&self) -> Vec<Depend> {
         match self {
             Package::PacmanPackage(pkg) => pkg.conflicts.clone(),
-            Package::AurPackage(pkg) => pkg.conflicts.iter().map(Depend::from_str).collect(),
+            Package::AurPackage(pkg) => pkg
+                .conflicts
+                .iter()
+                .map(|s| Depend::from_str(s).unwrap())
+                .collect(),
         }
     }
 
     pub fn provides(&self) -> Vec<Depend> {
         match self {
             Package::PacmanPackage(pkg) => pkg.provides.clone(),
-            Package::AurPackage(pkg) => pkg.provides.iter().map(Depend::from_str).collect(),
+            Package::AurPackage(pkg) => pkg
+                .provides
+                .iter()
+                .map(|s| Depend::from_str(s).unwrap())
+                .collect(),
         }
     }
 
     pub fn replaces(&self) -> Vec<Depend> {
         match self {
             Package::PacmanPackage(pkg) => pkg.replaces.clone(),
-            Package::AurPackage(pkg) => pkg.replaces.iter().map(Depend::from_str).collect(),
+            Package::AurPackage(pkg) => pkg
+                .replaces
+                .iter()
+                .map(|s| Depend::from_str(s).unwrap())
+                .collect(),
         }
     }
 }

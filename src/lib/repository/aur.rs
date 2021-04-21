@@ -6,7 +6,7 @@ use raur::blocking::{Handle, Raur};
 use crate::repository::Repository;
 use crate::types::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AurRepo {
     handler: Handle,
     cache: HashMap<String, Vec<Package>>,
@@ -14,10 +14,7 @@ pub struct AurRepo {
 
 impl AurRepo {
     pub fn new() -> Self {
-        Self {
-            handler: Default::default(),
-            cache: Default::default(),
-        }
+        Default::default()
     }
 }
 
