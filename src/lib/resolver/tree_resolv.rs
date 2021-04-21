@@ -158,8 +158,8 @@ impl TreeResolver {
                         solution
                     })
                 });
-                final_solution.take(1).collect_vec()
-                // beam width: 3
+                final_solution.take(5).collect_vec()
+                // beam width: 5
             }
         };
         self.cache.insert(cache_unit, result.clone());
