@@ -6,11 +6,11 @@ use anyhow::Result;
 use itertools::Itertools;
 
 use archer_lib::repository::aur::AurRepo;
+use archer_lib::repository::cached::CachedRepository;
 use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
 use archer_lib::resolver::tree_resolv::TreeResolver;
 use archer_lib::resolver::types::{DepList, ResolvePolicy};
 use archer_lib::types::Depend;
-use archer_lib::repository::cached::CachedRepository;
 
 fn main() -> Result<()> {
     let remote_repo = CachedRepository::new(PacmanRemote::new());

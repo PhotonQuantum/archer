@@ -1,10 +1,12 @@
-use crate::repository::Repository;
-use crate::types::*;
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::{Arc, RwLock};
 use std::prelude::rust_2015::Result::Ok;
+use std::sync::{Arc, RwLock};
+
+use itertools::Itertools;
+
+use crate::repository::Repository;
+use crate::types::*;
 
 #[derive(Debug, Clone)]
 pub struct CachedRepository {
@@ -25,11 +27,14 @@ impl Repository for CachedRepository {
     fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
         // search in cache first
         if let Some(hit) = self.cache.read().unwrap().get(pkg) {
-            return Ok(hit.clone())
+            return Ok(hit.clone());
         }
 
         let missed = self.inner.find_package(pkg)?; // query missed packages
-        self.cache.write().unwrap().insert(pkg.to_string(), missed.clone());    // write back into cache
+        self.cache
+            .write()
+            .unwrap()
+            .insert(pkg.to_string(), missed.clone()); // write back into cache
         Ok(missed)
     }
 

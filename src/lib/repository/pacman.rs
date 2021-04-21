@@ -64,7 +64,7 @@ impl Repository for PacmanRemote {
             .map(Package::from) // convert to owned
             .map(|p| classify_package(p, pkgs)) // classify packages by requested package name
             .flatten() // collect into map
-            .flatten()  // remove None
+            .flatten() // remove None
             .into_group_map();
 
         for (pkgname, pkgs) in &mut result {
@@ -114,7 +114,7 @@ impl Repository for PacmanLocal {
             .map(Package::from) // convert to owned
             .map(|p| classify_package(p, pkgs)) // classify packages by requested package name
             .flatten() // collect into map
-            .flatten()  // remove None
+            .flatten() // remove None
             .into_group_map())
     }
 }

@@ -1,8 +1,10 @@
-use crate::types::*;
-use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
+
+use itertools::Itertools;
+
+use crate::types::*;
 
 pub mod aur;
 pub mod cached;
