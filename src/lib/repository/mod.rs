@@ -1,11 +1,22 @@
 use crate::types::*;
+use itertools::Itertools;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 pub mod aur;
+pub mod cached;
 pub mod pacman;
 
-pub trait Repository {
-    fn find_package(&mut self, pkg: &str) -> Result<Vec<Package>>;
+pub trait Repository: Debug + Send + Sync {
+    fn find_package(&self, pkg: &str) -> Result<Vec<Package>> {
+        Ok(self
+            .find_packages([pkg].as_ref())?
+            .into_values()
+            .flatten()
+            .collect_vec())
+    }
+    fn find_packages(&self, pkgs: &[&str]) -> Result<HashMap<String, Vec<Package>>>;
 }
 
 fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &str) {
@@ -25,4 +36,18 @@ fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &str) {
             }
         }
     });
+}
+
+fn classify_package<'a>(
+    pkg: Package,
+    preferred_pkgs: &'a [&str],
+) -> impl Iterator<Item = Option<(String, Package)>> + 'a {
+    preferred_pkgs.iter().map(move |pkgname| {
+        (pkg.name() == *pkgname
+            || pkg
+                .provides()
+                .into_iter()
+                .any(|provide| provide.name == *pkgname))
+        .then_some((pkgname.to_string(), pkg.clone()))
+    })
 }

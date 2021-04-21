@@ -130,9 +130,9 @@ impl PackageTrait for PackageWithParent {
 // TODO refactor its ctor
 #[derive(Default, Clone)]
 pub struct ResolvePolicy {
-    pub from_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
-    pub skip_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
-    pub immortal_repo: Vec<Arc<Mutex<dyn Repository + Send>>>,
+    pub from_repo: Vec<Arc<Mutex<dyn Repository>>>,
+    pub skip_repo: Vec<Arc<Mutex<dyn Repository>>>,
+    pub immortal_repo: Vec<Arc<Mutex<dyn Repository>>>,
 }
 
 #[derive(Debug, Default, Clone)]

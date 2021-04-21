@@ -55,14 +55,16 @@ impl TreeResolver {
     ) -> Vec<Result<Solution>> {
         // recursion guard
         if cur_depth > self.max_depth {
-            return vec![Err(Error::RecursionError)]
+            return vec![Err(Error::RecursionError)];
         }
 
         // detect cyclic dependency
         if visited.contains(&pkg) {
             return if !self.allow_cyclic {
                 // e.g. aur package building
-                vec![Err(Error::DependencyError(DependencyError::CyclicDependency))]
+                vec![Err(Error::DependencyError(
+                    DependencyError::CyclicDependency,
+                ))]
             } else {
                 // e.g. installing pacman packages
                 println!("cyclic dependency detected.");
@@ -100,7 +102,7 @@ impl TreeResolver {
                                 vec![]
                             } else {
                                 match convert(self.policy.immortal_repo.iter_mut().map(Ok)).any(
-                                    |repo: &mut Arc<Mutex<dyn Repository + Send>>| {
+                                    |repo: &mut Arc<Mutex<dyn Repository>>| {
                                         Ok(repo
                                             .lock()
                                             .unwrap()
