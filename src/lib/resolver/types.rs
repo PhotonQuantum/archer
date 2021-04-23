@@ -190,6 +190,11 @@ impl<T: PackageTrait> Hash for DepList<T> {
 
 impl<T: PackageTrait> DepList<T> {
     pub fn union(mut self, other: Self) -> Option<Self> {
+        for (_, package) in &other.packages {
+            if !self.is_compatible(package) {
+                return None;
+            }
+        }
         for (k, v2) in other.packages {
             if let Some(v1) = self.packages.get(&k) {
                 if *v1 != v2 {
