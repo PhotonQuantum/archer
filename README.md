@@ -4,10 +4,11 @@
 
 Todos:
 - [ ] dependency resolving
-  + [x] basic functionality
+  + [x] dfs search (find dependency closure)
+  + [ ] topo sort
   + [ ] support for makedepends
-  + [ ] batch query
-  + [ ] async query for aur
+  + [x] batch query
+  + [x] parallel query for aur
   + [ ] custom pkgbuild support
 - [ ] build environment setup
   + [ ] bare metal
