@@ -234,15 +234,21 @@ impl<T: PackageTrait> DepList<T> {
             .unwrap_or(false)
     }
     pub fn is_compatible(&self, pkg: &T) -> bool {
-        let name_conflict = self.packages.get(pkg.name()).is_some();
+        if let Some(same_pkg_ver) = self
+            .packages
+            .get(pkg.name())
+            .map(|old| old.version() == pkg.version())
+        {
+            return same_pkg_ver;
+        };
 
         // let mut pkg_provides = vec![Depend::from(pkg)];
         let mut pkg_provides = vec![Depend::from(pkg.as_ref())];
         pkg_provides.extend(pkg.provides());
-        let conflicts_conflict = pkg_provides.into_iter().any(|pkg| {
+        let conflicts_conflict = pkg_provides.into_iter().any(|provide| {
             self.conflicts
-                .get(pkg.name.as_str())
-                .map(|conflict| !conflict.intersect(&pkg.version).is_empty())
+                .get(provide.name.as_str())
+                .map(|conflict| !conflict.intersect(&provide.version).is_empty())
                 .unwrap_or(false)
         });
 
