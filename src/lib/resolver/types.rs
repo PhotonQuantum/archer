@@ -9,24 +9,6 @@ use indexmap::IndexMap;
 use crate::repository::Repository;
 use crate::types::*;
 
-#[derive(Clone)]
-pub struct ArcedIterator<I> {
-    inner: Arc<Mutex<dyn Iterator<Item = I>>>,
-}
-
-impl<I> ArcedIterator<I> {
-    pub fn new(iter: Arc<Mutex<dyn Iterator<Item = I>>>) -> Self {
-        Self { inner: iter }
-    }
-}
-
-impl<I> Iterator for ArcedIterator<I> {
-    type Item = I;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.lock().unwrap().next()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct PackageWithParent {
