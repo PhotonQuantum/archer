@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -8,21 +9,13 @@ use crate::types::*;
 
 use super::types::*;
 
-type Solution = DepList<PackageWithParent>;
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-struct CacheUnit {
-    base: Solution,
-    dep: Depend,
-}
+type Ctx = Context<PackageWithParent>;
+type VecPackageWithParent = Vec<Arc<PackageWithParent>>;
 
 #[derive(Clone)]
 pub struct TreeResolver {
     policy: ResolvePolicy,
     allow_cyclic: bool,
-    max_depth: u32,
-    cache: HashMap<CacheUnit, Vec<Result<Solution>>>,
-    visited: HashSet<Depend>,
 }
 
 impl TreeResolver {
@@ -30,139 +23,189 @@ impl TreeResolver {
         TreeResolver {
             policy,
             allow_cyclic,
-            max_depth: 100,
-            cache: HashMap::new(),
-            visited: Default::default(),
         }
     }
 
-    pub fn initialize(&mut self) {
-        self.visited.clear()
+    fn union_into_ctx(&self, ctx: Ctx, pkgs: VecPackageWithParent) -> Result<Ctx> {
+        pkgs.into_iter()
+            .fold(Some(Ctx::new()), |acc, x| acc.and_then(|acc| acc.insert(x)))
+            .and_then(|ctx_merge| ctx.union(ctx_merge))
+            .ok_or_else(|| {
+                Error::DependencyError(DependencyError::ConflictDependency(String::from(
+                    "can't be merged",
+                )))
+            })
     }
 
-    pub fn clear_cache(&mut self) {
-        self.cache.clear()
+    fn insert_into_ctx(&self, mut ctx: Ctx, pkg: Arc<PackageWithParent>) -> Result<Option<Ctx>> {
+        Ok(self.insert_into_ctx_mut(&mut ctx, pkg)?.then(|| ctx))
     }
 
-    pub fn resolve(
-        &mut self,
-        base: Solution,
-        pkg: Package,
-        mut visited: HashSet<Depend>,
-        cur_depth: u32,
-    ) -> Vec<Result<Solution>> {
-        // recursion guard
-        if cur_depth > self.max_depth {
-            return vec![Err(Error::RecursionError)];
-        }
-
-        let dep = Depend::from(&pkg);
-        // detect cyclic dependency
-        if visited.contains(&dep) {
-            return if !self.allow_cyclic {
-                // e.g. aur package building
-                vec![Err(Error::DependencyError(DependencyError::CyclicDependency))]
-            } else {
-                // e.g. installing pacman packages
-                println!("cyclic dependency detected.");
-                vec![Ok(base)]
-            };
-        }
-        visited.insert(dep.clone());
-
-        // try to fetch solution from cache
-        let cache_unit = CacheUnit {
-            base: base.clone(),
-            dep,
-        };
-        if let Some(cached_solution) = self.cache.get(&cache_unit) {
-            return cached_solution.clone();
-        }
-
-        // println!("solving for - {} - {}", pkg.name, cur_depth);
-        let pkg = PackageWithParent::from(pkg);
-        let result = if base.contains_exact(&pkg) {
-            println!("Great! {} is already satisfied.", pkg);
-            vec![Ok(base)]
-        } else if !base.is_compatible(&pkg) {
-            // ensure that this package is compatible with base
-            println!("However, {} conflicts with current solution", pkg);
-            vec![]
+    fn insert_into_ctx_mut(&self, ctx: &mut Ctx, pkg: Arc<PackageWithParent>) -> Result<bool> {
+        if self.policy.is_mortal_blade(&*pkg)? {
+            Err(Error::DependencyError(DependencyError::ConflictDependency(
+                String::from("conflict with immortal package"),
+            )))
         } else {
-            let conflict = match self
-                .policy
-                .immortal_repo
-                .lock()
-                .unwrap()
-                .find_package(&Depend::from(&pkg))
-                .map(|immortals| {
-                    immortals
-                        .into_iter()
-                        .any(|immortal| immortal.version() != pkg.version())
-                }) {
-                Ok(conflict) => conflict,
-                Err(e) => return vec![Err(e)],
-            };
-            if conflict {
-                // ensure that package won't conflict with immortal set (we won't need to uninstall any immortal package)
-                println!("However, {} conflicts with immortal packages.", pkg);
-                vec![]
-            } else {
-                let resolved_deps = match self
-                    .policy
-                    .from_repo
-                    .lock()
-                    .unwrap()
-                    .find_packages(&*pkg.dependencies())
-                {
-                    Ok(deps) => deps,
-                    Err(e) => return vec![Err(e)],
-                };
-                // Layout of `dep_solutions`:
-                // [[solution1, solution2, ...]: dep1, dep2, ...]
-                let mut dep_solutions = resolved_deps
-                    .into_iter()
-                    .map(|(_, pkgs)| {
-                        // println!("Trying to solve dependency of {} - {}", pkg, dep);
-                        pkgs
-                            .into_iter()
-                            .take(5)    // there might be multiple packages satisfying dependency. choose at most 5 candidates.
-                            .map(|pkg| self.resolve(base.clone(), pkg, visited.clone(), cur_depth + 1))
-                            .map(|sol|sol.into_iter().take(3))  // take at most 3 solutions per candidate
-                            // TODO maybe shuffle to take solutions?
-                            .flatten()  // we don't care about which candidate each solution is yielded from.
-                            .collect_vec()
-                    })
-                    .collect_vec();
-                if dep_solutions.is_empty() {
-                    // there's no dependency. add an empty solution set to collection.
-                    dep_solutions.push(vec![Ok(DepList::new())]);
+            Ok(ctx.insert_mut(pkg))
+        }
+    }
+
+    // TODO dfs only, no topo sort yet
+    pub fn resolve(&mut self, pkgs: &[Package]) -> Result<Ctx> {
+        let mut stage_pkgs: Vec<Box<dyn Iterator<Item = VecPackageWithParent>>> = vec![];
+        let mut depth = 0;
+
+        // push initial set
+        let (initial_ctx, initial_pkgs) = pkgs.iter().map(PackageWithParent::from).fold(
+            Ok((Ctx::new(), vec![])),
+            |acc: Result<_>, x| {
+                let name = x.to_string();
+                let x = Arc::new(x);
+                acc.and_then(|(ctx, mut pkgs)| {
+                    let ctx =
+                        self.insert_into_ctx(ctx, x.clone())?
+                            .ok_or(Error::DependencyError(DependencyError::ConflictDependency(
+                                name,
+                            )))?;
+                    pkgs.push(x);
+                    Ok((ctx, pkgs))
+                })
+            },
+        )?;
+        let initial_pkgs = self.next_candidates(&initial_pkgs, initial_ctx.clone())?;
+        if let Some(initial_pkgs) = initial_pkgs {
+            stage_pkgs.push(initial_pkgs);
+        } else {
+            return Ok(initial_ctx);
+        }
+        let mut partial_solutions = vec![initial_ctx];
+
+        let mut depth_try_count = 0u32;
+        let mut rewind = false;
+        loop {
+            if rewind || depth_try_count > 300 {
+                // limit search space, backtrack earlier when there's little hope (maybe an earlier step is to blame)
+                if depth == 0 {
+                    // TODO better error reporting
+                    // stack depleted
+                    return Err(Error::DependencyError(DependencyError::ConflictDependency(
+                        String::from("can't find solution"),
+                    )));
+                } else {
+                    partial_solutions.pop().unwrap();
+                    drop(stage_pkgs.pop().unwrap());
+                    depth -= 1;
+                    println!("rewinding to {}", depth);
                 }
-                let merged_dep_solution = dep_solutions
-                    .into_iter()
-                    .multi_cartesian_product()  // select one solution per dependency and form a set each iter
-                    .map(move |i| {
-                        i.into_iter()
-                            .fold(Ok(base.clone()), |acc: Result<Solution>, x: Result<Solution>| {
-                                // println!("merging {:?} and {:?}", acc, x);
-                                acc.and_then(|acc| x.and_then(|x| {
-                                    acc.union(x).ok_or(Error::NoneError)} // drop incompatible solution sets
-                                ))
-                            })
-                    })
-                    .filter(|solution| !(matches!(solution, Err(Error::NoneError))));   // remove invalidated solution sets
-                let candidate = Arc::new(Box::new(pkg));
-                let final_solution = merged_dep_solution.map(move |solution| {
-                    solution.map(|mut solution| {
-                        solution.insert_mut(candidate.clone());
-                        solution
-                    })
-                });
-                final_solution.take(5).collect_vec()
-                // beam width: 5
             }
-        };
-        self.cache.insert(cache_unit, result.clone());
-        result
+            let partial_solution = partial_solutions.get(depth).unwrap().clone();
+            if let Some(candidates) = stage_pkgs.get_mut(depth).unwrap().next() {
+                if partial_solution.is_superset(
+                    candidates
+                        .iter()
+                        .map(|i| i.as_ref())
+                        .collect_vec()
+                        .as_slice(),
+                ) {
+                    return Ok(partial_solution); // no new dependency, solution found
+                }
+
+                let partial_solution =
+                    match self.union_into_ctx(partial_solution, candidates.clone()) {
+                        Ok(v) => v,
+                        Err(_) => continue, // not accepted, try the next set of candidates
+                    };
+
+                // Current set of candidates accepted, start forming next stage
+
+                println!("searching candidates");
+                let next_candidates =
+                    self.next_candidates(&*candidates, partial_solution.clone())?;
+                let next_candidates = if let Some(v) = next_candidates {
+                    v
+                } else {
+                    return Ok(partial_solution);
+                };
+
+                depth += 1;
+                println!("step into depth {}", depth);
+                depth_try_count = 0;
+                partial_solutions.push(partial_solution);
+                stage_pkgs.push(next_candidates);
+            } else {
+                rewind = true; // current node depleted with no solution found. backtracking...
+            }
+        }
+    }
+
+    fn next_candidates<'a>(
+        &'a self,
+        candidates: &[Arc<PackageWithParent>],
+        partial_solution: Ctx,
+    ) -> Result<Option<Box<dyn Iterator<Item = VecPackageWithParent> + 'a>>> {
+        // get deps of all candidates and merge them
+        let merged_deps: Vec<_> = candidates
+            .iter()
+            .fold(HashMap::new(), |mut acc: HashMap<_, DependVersion>, x| {
+                let deps = x.dependencies();
+                for dep in deps {
+                    acc.entry(dep.name.clone()) // Oops we don't need to clone there! Watch out borrow checker :(
+                        .and_modify(|e| *e = e.union(&dep.version.clone()))
+                        .or_insert(dep.version);
+                }
+                acc
+            })
+            .into_iter()
+            .map(|(name, version)| Depend { name, version })
+            .collect();
+        if merged_deps.is_empty() {
+            return Ok(None); // no new deps needed
+        }
+
+        let cloned_policy = self.policy.clone(); // clone for closure use
+
+        // Layout of `resolved_deps`:
+        // [[solution1, solution2, ...]: dep1, dep2, ...]
+        let resolved_deps = self
+            .policy
+            .from_repo
+            .lock()
+            .unwrap()
+            .find_packages(&*merged_deps)
+            // TODO build dependency tree in each depth
+            .map(move |i| {
+                i.into_values()
+                    .sorted_by(|a, b| b.len().cmp(&a.len())) // heuristic strategy: iter solution from packages with less deps
+                    .map(|pkg| (pkg, cloned_policy.clone(), cloned_policy.clone())) // clone for closure use
+                    .map(move |(pkg, cloned_policy, cloned_policy_2)| {
+                        pkg.into_iter()
+                            .filter(move |pkg| !cloned_policy.is_mortal_blade(pkg).unwrap())
+                            .sorted_by(|a, b| {
+                                let a = PackageWithParent::from(a);
+                                let b = PackageWithParent::from(b);
+                                if partial_solution.contains_exact(&a)          // prefer chosen packages
+                                    || cloned_policy_2.is_immortal(&a).unwrap()
+                                // prefer immortal packages
+                                {
+                                    Ordering::Less
+                                } else if partial_solution.contains_exact(&b)
+                                    || cloned_policy_2.is_immortal(&b).unwrap()
+                                {
+                                    Ordering::Greater
+                                } else {
+                                    Ordering::Equal
+                                }
+                            })
+                            .take(5) // limit search space
+                            .map(PackageWithParent::from)
+                            .map(Arc::new)
+                    })
+                    .collect_vec()
+            })?;
+
+        // [solution1, solution2, ...]
+        let next_candidates = resolved_deps.into_iter().multi_cartesian_product();
+        Ok(Some(Box::new(next_candidates)))
     }
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use indexmap::IndexMap;
 
@@ -57,6 +57,15 @@ impl From<Package> for PackageWithParent {
     fn from(pkg: Package) -> Self {
         Self {
             data: pkg,
+            parent: None,
+        }
+    }
+}
+
+impl From<&Package> for PackageWithParent {
+    fn from(pkg: &Package) -> Self {
+        Self {
+            data: pkg.clone(),
             parent: None,
         }
     }
@@ -163,24 +172,60 @@ impl ResolvePolicy {
             immortal_cache: Arc::new(Default::default())
         }
     }
+    pub fn is_mortal_blade(&self, pkg: impl PackageTrait) -> Result<bool> {
+        let dep = Depend::from(pkg.clone());
+        if let Some(mortal_blade) = self.immortal_cache.read().unwrap().get(&dep) {
+            return Ok(*mortal_blade);
+        }
+        let mortal_blade =
+            self.immortal_repo
+                .lock()
+                .unwrap()
+                .find_package(&dep)
+                .map(|immortals| {
+                    immortals
+                        .into_iter()
+                        .any(|immortal| immortal.version() != pkg.version())
+                })?;
+        self.immortal_cache
+            .write()
+            .unwrap()
+            .insert(dep, mortal_blade);
+        Ok(mortal_blade)
+    }
+
+    pub fn is_immortal(&self, pkg: impl PackageTrait) -> Result<bool> {
+        let dep = Depend::from(pkg.clone());
+        let immortal = self
+            .immortal_repo
+            .lock()
+            .unwrap()
+            .find_package(&dep)
+            .map(|immortals| {
+                immortals
+                    .into_iter()
+                    .any(|immortal| immortal.version() == pkg.version())
+            })?;
+        Ok(immortal)
+    }
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct DepList<T: PackageTrait> {
-    pub packages: IndexMap<String, Arc<Box<T>>>,
-    pub conflicts: HashMap<String, Arc<Box<DependVersion>>>,
-    pub provides: HashMap<String, Arc<Box<DependVersion>>>,
+pub struct Context<T: PackageTrait> {
+    pub packages: IndexMap<String, Arc<T>>,
+    pub conflicts: HashMap<String, Arc<DependVersion>>,
+    pub provides: HashMap<String, Arc<DependVersion>>,
 }
 
-impl<T: PackageTrait> PartialEq for DepList<T> {
+impl<T: PackageTrait> PartialEq for Context<T> {
     fn eq(&self, other: &Self) -> bool {
         self.packages == other.packages
     }
 }
 
-impl<T: PackageTrait> Eq for DepList<T> {}
+impl<T: PackageTrait> Eq for Context<T> {}
 
-impl<T: PackageTrait> Hash for DepList<T> {
+impl<T: PackageTrait> Hash for Context<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for (_, package) in &self.packages {
             package.hash(state);
@@ -188,7 +233,11 @@ impl<T: PackageTrait> Hash for DepList<T> {
     }
 }
 
-impl<T: PackageTrait> DepList<T> {
+impl<T: PackageTrait> Context<T> {
+    pub fn is_superset(&self, other: &[&T]) -> bool {
+        other.iter().all(|pkg| self.contains_exact(pkg))
+    }
+
     pub fn union(mut self, other: Self) -> Option<Self> {
         for (_, package) in &other.packages {
             if !self.is_compatible(package) {
@@ -206,7 +255,7 @@ impl<T: PackageTrait> DepList<T> {
         }
         for (k, v2) in other.provides {
             let v = if let Some(v1) = self.provides.get(&k) {
-                Arc::new(Box::new(v1.union(&**v2)))
+                Arc::new(v1.union(&*v2))
             } else {
                 v2
             };
@@ -214,7 +263,7 @@ impl<T: PackageTrait> DepList<T> {
         }
         for (k, v2) in other.conflicts {
             let v = if let Some(v1) = self.conflicts.get(&k) {
-                Arc::new(Box::new(v1.intersect(&**v2)))
+                Arc::new(v1.intersect(&*v2))
             } else {
                 v2
             };
@@ -230,12 +279,12 @@ impl<T: PackageTrait> DepList<T> {
         }
     }
     pub fn get(&self, name: &str) -> Option<&T> {
-        self.packages.get(name).map(|pkg| &***pkg)
+        self.packages.get(name).map(|pkg| &**pkg)
     }
     pub fn contains_exact(&self, pkg: &T) -> bool {
         self.packages
             .get(pkg.name())
-            .map(|candidate| &***candidate == pkg)
+            .map(|candidate| &**candidate == pkg)
             .unwrap_or(false)
     }
     pub fn is_compatible(&self, pkg: &T) -> bool {
@@ -264,29 +313,31 @@ impl<T: PackageTrait> DepList<T> {
                 .unwrap_or(false)
         });
 
-        !(name_conflict || conflicts_conflict || provides_conflict)
+        !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<Box<T>>) -> Option<Self> {
+    pub fn insert(mut self, pkg: Arc<T>) -> Option<Self> {
         self.insert_mut(pkg).then(|| self)
     }
-    pub fn insert_mut(&mut self, pkg: Arc<Box<T>>) -> bool {
+    pub fn insert_mut(&mut self, pkg: Arc<T>) -> bool {
         // TODO unchecked insert
-        if !self.is_compatible(&**pkg) {
+        if !self.is_compatible(&*pkg) {
             false
         } else {
             let name = pkg.name().to_string();
+            if let Some(existing) = self.packages.get(&name) {
+                return existing.version() == pkg.version();
+            }
             self.packages.insert(name, pkg.clone());
 
             let mut provides = pkg.provides();
-            provides.push(Depend::from((&**pkg).as_ref()));
+            provides.push(Depend::from((&*pkg).as_ref()));
             for provide in provides {
                 let depend_version = if let Some(pkg) = self.provides.get(provide.name.as_str()) {
                     pkg.union(&provide.version)
                 } else {
                     provide.version
                 };
-                self.provides
-                    .insert(provide.name, Arc::new(Box::new(depend_version)));
+                self.provides.insert(provide.name, Arc::new(depend_version));
             }
 
             for conflict in pkg.conflicts() {
@@ -297,7 +348,7 @@ impl<T: PackageTrait> DepList<T> {
                     conflict.version
                 };
                 self.conflicts
-                    .insert(conflict.name, Arc::new(Box::new(conflict_version)));
+                    .insert(conflict.name, Arc::new(conflict_version));
             }
 
             true
