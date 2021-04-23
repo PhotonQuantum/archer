@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use raur::blocking::{Handle, Raur};
+use rayon::prelude::*;
 
 use crate::repository::{classify_package, sort_pkgs_mut, Repository};
 use crate::types::*;
@@ -44,12 +45,12 @@ impl Repository for AurRepo {
         // TODO error handling
         println!("aur searching for {}", pkgs.iter().join(", "));
         // let search_result: HashMap<String, Vec<Package>> = pkgs.iter().map(|pkgname|self.handler.search(pkgname));
-        let search_result = pkgs
-            .iter()
+        let search_result: Vec<_> = pkgs
+            .into_par_iter()
             .map(|dep| self.handler.search(&dep.name).unwrap_or_default()) // search candidates per package
             .flatten()
             .map(|p| p.name)
-            .collect_vec();
+            .collect();
 
         let mut detailed_info = self
             .handler
