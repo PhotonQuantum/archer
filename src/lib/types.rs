@@ -143,15 +143,29 @@ impl<T: PackageTrait> From<T> for Depend {
     }
 }
 
+macro_rules! split_cmp_op {
+    ($s: ident, $sep: expr, $rel: expr) => {
+        $s.split_once($sep).map(|(name, ver)| {
+            (
+                name.to_string(),
+                DependVersion(Ranges::from($rel(Version(ver.to_string())))),
+            )
+        })
+    };
+}
+
 impl FromStr for Depend {
     type Err = !;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        // TODO parse aur str
-        Ok(Self {
-            name: s.to_string(),
-            version: DependVersion(Ranges::full()),
-        })
+        // TODO parse neq (!=? <>?)
+        let (name, version) = split_cmp_op!(s, ">=", GenericRange::new_at_least)
+            .or_else(|| split_cmp_op!(s, "<=", GenericRange::new_at_most))
+            .or_else(|| split_cmp_op!(s, ">", GenericRange::new_greater_than))
+            .or_else(|| split_cmp_op!(s, "<", GenericRange::new_less_than))
+            .or_else(|| split_cmp_op!(s, "=", GenericRange::singleton))
+            .unwrap_or((s.to_string(), DependVersion(Ranges::full())));
+        Ok(Self { name, version })
     }
 }
 
