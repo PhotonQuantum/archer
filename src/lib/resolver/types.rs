@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use crate::repository::Repository;
 use crate::types::*;
 
+type ArcRepo = Arc<Mutex<dyn Repository>>;
 
 #[derive(Debug, Clone)]
 pub struct PackageWithParent {
@@ -144,13 +145,24 @@ impl PackageTrait for &PackageWithParent {
     }
 }
 
-// TODO refactor its ctor
 // TODO remove mutex cuz find_package(s) doesn't require mut now
 #[derive(Clone)]
 pub struct ResolvePolicy {
-    pub from_repo: Arc<Mutex<dyn Repository>>,
-    pub skip_repo: Arc<Mutex<dyn Repository>>,
-    pub immortal_repo: Arc<Mutex<dyn Repository>>,
+    pub from_repo: ArcRepo,
+    pub skip_repo: ArcRepo,
+    pub immortal_repo: ArcRepo,
+    pub immortal_cache: Arc<RwLock<HashMap<Depend, bool>>>,
+}
+
+impl ResolvePolicy {
+    pub fn new(from_repo: ArcRepo, skip_repo: ArcRepo, immortal_repo: ArcRepo) -> Self {
+        Self {
+            from_repo,
+            skip_repo,
+            immortal_repo,
+            immortal_cache: Arc::new(Default::default())
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
