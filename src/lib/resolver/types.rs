@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use indexmap::IndexMap;
 
 use crate::repository::Repository;
 use crate::types::*;
 
-type ArcRepo = Arc<Mutex<dyn Repository>>;
+type ArcRepo = Arc<dyn Repository>;
 
 #[derive(Debug, Clone)]
 pub struct PackageWithParent {
@@ -169,7 +169,7 @@ impl ResolvePolicy {
             from_repo,
             skip_repo,
             immortal_repo,
-            immortal_cache: Arc::new(Default::default())
+            immortal_cache: Arc::new(Default::default()),
         }
     }
     pub fn is_mortal_blade(&self, pkg: impl PackageTrait) -> Result<bool> {
@@ -177,16 +177,11 @@ impl ResolvePolicy {
         if let Some(mortal_blade) = self.immortal_cache.read().unwrap().get(&dep) {
             return Ok(*mortal_blade);
         }
-        let mortal_blade =
-            self.immortal_repo
-                .lock()
-                .unwrap()
-                .find_package(&dep)
-                .map(|immortals| {
-                    immortals
-                        .into_iter()
-                        .any(|immortal| immortal.version() != pkg.version())
-                })?;
+        let mortal_blade = self.immortal_repo.find_package(&dep).map(|immortals| {
+            immortals
+                .into_iter()
+                .any(|immortal| immortal.version() != pkg.version())
+        })?;
         self.immortal_cache
             .write()
             .unwrap()
@@ -196,16 +191,11 @@ impl ResolvePolicy {
 
     pub fn is_immortal(&self, pkg: impl PackageTrait) -> Result<bool> {
         let dep = Depend::from(pkg.clone());
-        let immortal = self
-            .immortal_repo
-            .lock()
-            .unwrap()
-            .find_package(&dep)
-            .map(|immortals| {
-                immortals
-                    .into_iter()
-                    .any(|immortal| immortal.version() == pkg.version())
-            })?;
+        let immortal = self.immortal_repo.find_package(&dep).map(|immortals| {
+            immortals
+                .into_iter()
+                .any(|immortal| immortal.version() == pkg.version())
+        })?;
         Ok(immortal)
     }
 }

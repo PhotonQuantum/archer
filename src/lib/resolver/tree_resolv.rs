@@ -170,8 +170,6 @@ impl TreeResolver {
         let resolved_deps = self
             .policy
             .from_repo
-            .lock()
-            .unwrap()
             .find_packages(&*merged_deps)
             // TODO build dependency tree in each depth
             .map(move |i| {
