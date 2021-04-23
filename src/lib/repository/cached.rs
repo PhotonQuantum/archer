@@ -43,11 +43,7 @@ impl Repository for CachedRepository {
             let cache_read = self.cache.read().unwrap();
             let hit_deps: HashMap<Depend, Vec<Package>> = pkgs
                 .iter()
-                .filter_map(|dep| {
-                    cache_read
-                        .get(dep)
-                        .map(|pkg| (dep.clone(), pkg.clone()))
-                })
+                .filter_map(|dep| cache_read.get(dep).map(|pkg| (dep.clone(), pkg.clone())))
                 .collect();
             let missed_deps = pkgs
                 .iter()

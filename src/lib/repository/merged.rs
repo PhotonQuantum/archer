@@ -1,9 +1,11 @@
-use crate::repository::Repository;
-use crate::types::*;
-use fallible_iterator::{convert, FallibleIterator};
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use fallible_iterator::{convert, FallibleIterator};
+use itertools::Itertools;
+
+use crate::repository::Repository;
+use crate::types::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct MergedRepository {
@@ -21,13 +23,16 @@ impl Repository for MergedRepository {
     // once there's valid response from a repo for each package, it won't be queried against succeeding repos
 
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
-        convert(self.repos.iter().map(Ok)).fold(vec![], |mut acc, repo: &Arc<Mutex<dyn Repository>>|{
-            if acc.is_empty() {
-                let result = repo.lock().unwrap().find_package(pkg)?;
-                acc.extend(result);
-            }
-            Ok(acc)
-        })
+        convert(self.repos.iter().map(Ok)).fold(
+            vec![],
+            |mut acc, repo: &Arc<Mutex<dyn Repository>>| {
+                if acc.is_empty() {
+                    let result = repo.lock().unwrap().find_package(pkg)?;
+                    acc.extend(result);
+                }
+                Ok(acc)
+            },
+        )
     }
 
     fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
@@ -50,7 +55,7 @@ impl Repository for MergedRepository {
                         if let Some(new_pkgs) = result.remove(name) {
                             pkgs.extend(new_pkgs)
                         }
-                    };
+                    }
                 }
                 Ok(acc)
             },

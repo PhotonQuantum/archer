@@ -6,8 +6,8 @@ use crate::types::*;
 
 pub mod aur;
 pub mod cached;
-pub mod pacman;
 pub mod merged;
+pub mod pacman;
 
 pub trait Repository: Debug + Send + Sync {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>>;
@@ -15,9 +15,7 @@ pub trait Repository: Debug + Send + Sync {
         let mut result = HashMap::new();
         for pkg in pkgs {
             match self.find_package(pkg) {
-                Err(e) => {
-                    return Err(e)
-                }
+                Err(e) => return Err(e),
                 Ok(v) => {
                     result.insert(pkg.clone(), v);
                 }
@@ -51,6 +49,7 @@ fn classify_package(
     target_deps: &[Depend],
 ) -> impl Iterator<Item = Option<(Depend, Package)>> + '_ {
     target_deps.iter().map(move |dep| {
-        dep.satisfied_by(&candidate).then_some((dep.clone(), candidate.clone()))
+        dep.satisfied_by(&candidate)
+            .then_some((dep.clone(), candidate.clone()))
     })
 }
