@@ -70,20 +70,8 @@ impl Ord for Version {
 impl Domain for Version {}
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct DependVersion(Ranges<Version>);
+pub struct DependVersion(pub Ranges<Version>);
 
-// #[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Hash)]
-// pub enum DependVersion {
-//     Any,
-//     Eq(Version),
-//     Ge(Version),
-//     Le(Version),
-//     Gt(Version),
-//     Lt(Version),
-//     Neq(Version),
-//     Empty,
-// }
-//
 impl DependVersion {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -132,9 +120,10 @@ pub struct Depend {
 impl Depend {
     pub fn satisfied_by(&self, candidate: &Package) -> bool {
         (candidate.name() == self.name && self.version.satisfied_by(&candidate.version()))
-            || candidate.provides().into_iter().any(|provide| {
-            provide.name == self.name && self.version.contains(&provide.version)
-        })
+            || candidate
+                .provides()
+                .into_iter()
+                .any(|provide| provide.name == self.name && self.version.contains(&provide.version))
     }
 }
 
