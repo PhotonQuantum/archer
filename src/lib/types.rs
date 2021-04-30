@@ -424,6 +424,40 @@ pub trait PackageTrait: Eq + AsRef<Package> + Display + Hash + Clone {
     fn replaces(&self) -> Vec<Depend>;
 }
 
+impl PackageTrait for Package {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn version(&self) -> Version {
+        self.version()
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description()
+    }
+
+    fn url(&self) -> Option<&str> {
+        self.url()
+    }
+
+    fn dependencies(&self) -> Vec<Depend> {
+        self.dependencies()
+    }
+
+    fn conflicts(&self) -> Vec<Depend> {
+        self.conflicts()
+    }
+
+    fn provides(&self) -> Vec<Depend> {
+        self.provides()
+    }
+
+    fn replaces(&self) -> Vec<Depend> {
+        self.replaces()
+    }
+}
+
 impl PackageTrait for &Package {
     fn name(&self) -> &str {
         (**self).name()

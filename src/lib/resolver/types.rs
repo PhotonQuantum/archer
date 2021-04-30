@@ -1,10 +1,12 @@
-use std::collections::HashMap;
+use std::collections::hash_map::Values;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
-use indexmap::IndexMap;
+use itertools::Itertools;
+use petgraph::Graph;
 
 use crate::repository::Repository;
 use crate::types::*;
@@ -12,72 +14,74 @@ use crate::types::*;
 type ArcRepo = Arc<dyn Repository>;
 
 #[derive(Debug, Clone)]
-pub struct PackageWithParent {
+pub struct PackageNode {
     data: Package,
     // parent: Option<Arc<Box<PackageWithParent>>>
-    parent: Option<Depend>,
+    reason: Vec<Depend>,
 }
 
-impl PackageWithParent {
-    pub fn with_parent(self, parent: Depend) -> Self {
-        Self {
-            data: self.data,
-            parent: Some(parent),
-        }
+impl PackageNode {
+    pub fn add_parent(mut self, parent: Depend) -> Self {
+        self.reason.push(parent);
+        self
     }
 }
 
-impl Display for PackageWithParent {
+impl Display for PackageNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if let Some(parent) = &self.parent {
-            // write!(f, "{} -> {}", parent, self.data)
-            write!(f, "{} -> {}", parent, self.data)
-        } else {
+        if self.reason.is_empty() {
             write!(f, "{}", self.data)
+        } else {
+            write!(
+                f,
+                "({}) -> {}",
+                self.reason.iter().map(|r| r.to_string()).join(","),
+                self.data
+            )
         }
     }
 }
 
-impl PartialEq for PackageWithParent {
+impl PartialEq for PackageNode {
     fn eq(&self, other: &Self) -> bool {
         self.data.name() == other.data.name() && self.data.version() == other.data.version()
     }
 }
 
-impl Eq for PackageWithParent {}
+impl Eq for PackageNode {}
 
-impl Hash for PackageWithParent {
+impl Hash for PackageNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.name().hash(state);
         self.version().hash(state);
     }
 }
 
-impl From<Package> for PackageWithParent {
+impl From<Package> for PackageNode {
     fn from(pkg: Package) -> Self {
         Self {
             data: pkg,
-            parent: None,
+            reason: vec![],
         }
     }
 }
 
-impl From<&Package> for PackageWithParent {
+impl From<&Package> for PackageNode {
     fn from(pkg: &Package) -> Self {
         Self {
             data: pkg.clone(),
-            parent: None,
+            reason: vec![],
         }
     }
 }
 
-impl AsRef<Package> for PackageWithParent {
+impl AsRef<Package> for PackageNode {
     fn as_ref(&self) -> &Package {
         &self.data
     }
 }
 
-impl Deref for PackageWithParent {
+impl Deref for PackageNode {
     type Target = Package;
 
     fn deref(&self) -> &Self::Target {
@@ -86,7 +90,7 @@ impl Deref for PackageWithParent {
 }
 
 // TODO don't duplicate this
-impl PackageTrait for PackageWithParent {
+impl PackageTrait for PackageNode {
     fn name(&self) -> &str {
         self.data.name()
     }
@@ -120,7 +124,7 @@ impl PackageTrait for PackageWithParent {
     }
 }
 
-impl PackageTrait for &PackageWithParent {
+impl PackageTrait for &PackageNode {
     fn name(&self) -> &str {
         self.data.name()
     }
@@ -202,9 +206,19 @@ impl ResolvePolicy {
 
 #[derive(Debug, Default, Clone)]
 pub struct Context<T: PackageTrait> {
-    pub packages: IndexMap<String, Arc<T>>,
+    pub packages: HashMap<String, Arc<T>>,
+    pub reasons: HashMap<Arc<T>, HashSet<Arc<T>>>,
     pub conflicts: HashMap<String, Arc<DependVersion>>,
     pub provides: HashMap<String, Arc<DependVersion>>,
+}
+
+impl<T: PackageTrait> Context<T> {
+    pub fn is_empty(&self) -> bool {
+        self.packages.is_empty()
+    }
+    pub fn pkgs(&self) -> Values<String, Arc<T>> {
+        self.packages.values()
+    }
 }
 
 impl<T: PackageTrait> PartialEq for Context<T> {
@@ -217,7 +231,7 @@ impl<T: PackageTrait> Eq for Context<T> {}
 
 impl<T: PackageTrait> Hash for Context<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for (_, package) in &self.packages {
+        for package in self.packages.values() {
             package.hash(state);
         }
     }
@@ -229,7 +243,7 @@ impl<T: PackageTrait> Context<T> {
     }
 
     pub fn union(mut self, other: Self) -> Option<Self> {
-        for (_, package) in &other.packages {
+        for package in other.packages.values() {
             if !self.is_compatible(package) {
                 return None;
             }
@@ -243,27 +257,30 @@ impl<T: PackageTrait> Context<T> {
             }
             self.packages.insert(k, v2);
         }
+        for (k, v) in other.reasons {
+            self.reasons.entry(k).and_modify(|reason| {
+                reason.extend(v);
+            });
+        }
+
         for (k, v2) in other.provides {
-            let v = if let Some(v1) = self.provides.get(&k) {
-                Arc::new(v1.union(&*v2))
-            } else {
-                v2
-            };
-            self.provides.insert(k, v);
+            self.provides
+                .entry(k)
+                .and_modify(|v1| *v1 = Arc::new(v1.union(&*v2)))
+                .or_insert(v2);
         }
         for (k, v2) in other.conflicts {
-            let v = if let Some(v1) = self.conflicts.get(&k) {
-                Arc::new(v1.intersect(&*v2))
-            } else {
-                v2
-            };
-            self.conflicts.insert(k, v);
+            self.conflicts
+                .entry(k)
+                .and_modify(|v1| *v1 = Arc::new(v1.intersect(&*v2)))
+                .or_insert(v2);
         }
         Some(self)
     }
     pub fn new() -> Self {
         Self {
             packages: Default::default(),
+            reasons: Default::default(),
             conflicts: Default::default(),
             provides: Default::default(),
         }
@@ -305,10 +322,10 @@ impl<T: PackageTrait> Context<T> {
 
         !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<T>) -> Option<Self> {
-        self.insert_mut(pkg).then(|| self)
+    pub fn insert(mut self, pkg: Arc<T>, reason: Option<Arc<T>>) -> Option<Self> {
+        self.insert_mut(pkg, reason).then(|| self)
     }
-    pub fn insert_mut(&mut self, pkg: Arc<T>) -> bool {
+    pub fn insert_mut(&mut self, pkg: Arc<T>, reason: Option<Arc<T>>) -> bool {
         // TODO unchecked insert
         if !self.is_compatible(&*pkg) {
             false
@@ -318,6 +335,11 @@ impl<T: PackageTrait> Context<T> {
                 return existing.version() == pkg.version();
             }
             self.packages.insert(name, pkg.clone());
+            if let Some(reason) = reason {
+                let mut s = HashSet::new();
+                s.insert(reason);
+                self.reasons.insert(pkg.clone(), s);
+            }
 
             let mut provides = pkg.provides();
             provides.push(Depend::from((&*pkg).as_ref()));
@@ -343,5 +365,24 @@ impl<T: PackageTrait> Context<T> {
 
             true
         }
+    }
+}
+
+impl<T: PackageTrait> From<&Context<T>> for Graph<Arc<T>, ()> {
+    fn from(g: &Context<T>) -> Self {
+        let mut g_ = Graph::new();
+        let mut map_pkg_idx = HashMap::new();
+
+        g.reasons.keys().for_each(|pkg| {
+            map_pkg_idx.insert(pkg.clone(), g_.add_node(pkg.clone()));
+        });
+        g.reasons.iter().for_each(|(pkg, reasons)| {
+            let pkg_idx = map_pkg_idx.get(&*pkg).unwrap();
+            reasons.iter().for_each(|reason| {
+                let reason_idx = map_pkg_idx.get(reason).unwrap();
+                g_.add_edge(*reason_idx, *pkg_idx, ());
+            })
+        });
+        g_
     }
 }

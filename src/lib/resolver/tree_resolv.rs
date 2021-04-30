@@ -9,8 +9,7 @@ use crate::types::*;
 
 use super::types::*;
 
-type Ctx = Context<PackageWithParent>;
-type VecPackageWithParent = Vec<Arc<PackageWithParent>>;
+type Ctx = Context<Package>;
 
 #[derive(Clone)]
 pub struct TreeResolver {
@@ -26,56 +25,62 @@ impl TreeResolver {
         }
     }
 
-    fn union_into_ctx(&self, ctx: Ctx, pkgs: VecPackageWithParent) -> Result<Ctx> {
-        pkgs.into_iter()
-            .fold(Some(Ctx::new()), |acc, x| acc.and_then(|acc| acc.insert(x)))
-            .and_then(|ctx_merge| ctx.union(ctx_merge))
-            .ok_or_else(|| {
-                Error::DependencyError(DependencyError::ConflictDependency(String::from(
-                    "can't be merged",
-                )))
-            })
+    fn union_into_ctx(&self, ctx: Ctx, pkgs: Ctx) -> Result<Ctx> {
+        ctx.union(pkgs).ok_or_else(|| {
+            Error::DependencyError(DependencyError::ConflictDependency(String::from(
+                "can't be merged",
+            )))
+        })
     }
 
-    fn insert_into_ctx(&self, mut ctx: Ctx, pkg: Arc<PackageWithParent>) -> Result<Option<Ctx>> {
-        Ok(self.insert_into_ctx_mut(&mut ctx, pkg)?.then(|| ctx))
+    fn insert_into_ctx(
+        &self,
+        mut ctx: Ctx,
+        pkg: Arc<Package>,
+        reason: Option<Arc<Package>>,
+    ) -> Result<Option<Ctx>> {
+        Ok(self
+            .insert_into_ctx_mut(&mut ctx, pkg, reason)?
+            .then(|| ctx))
     }
 
-    fn insert_into_ctx_mut(&self, ctx: &mut Ctx, pkg: Arc<PackageWithParent>) -> Result<bool> {
+    fn insert_into_ctx_mut(
+        &self,
+        ctx: &mut Ctx,
+        pkg: Arc<Package>,
+        reason: Option<Arc<Package>>,
+    ) -> Result<bool> {
         if self.policy.is_mortal_blade(&*pkg)? {
             Err(Error::DependencyError(DependencyError::ConflictDependency(
                 String::from("conflict with immortal package"),
             )))
         } else {
-            Ok(ctx.insert_mut(pkg))
+            Ok(ctx.insert_mut(pkg, reason))
         }
     }
 
     // TODO dfs only, no topo sort yet
     pub fn resolve(&mut self, pkgs: &[Package]) -> Result<Ctx> {
-        let mut stage_pkgs: Vec<Box<dyn Iterator<Item = VecPackageWithParent>>> = vec![];
+        let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Ctx>>> = vec![];
         let mut depth = 0;
 
         // push initial set
-        let (initial_ctx, initial_pkgs) = pkgs.iter().map(PackageWithParent::from).fold(
-            Ok((Ctx::new(), vec![])),
-            |acc: Result<_>, x| {
+        let initial_ctx = pkgs
+            .iter()
+            .cloned()
+            .fold(Ok(Ctx::new()), |acc: Result<_>, x| {
                 let name = x.to_string();
                 let x = Arc::new(x);
-                acc.and_then(|(ctx, mut pkgs)| {
-                    let ctx =
-                        self.insert_into_ctx(ctx, x.clone())?
-                            .ok_or(Error::DependencyError(DependencyError::ConflictDependency(
-                                name,
-                            )))?;
-                    pkgs.push(x);
-                    Ok((ctx, pkgs))
+                acc.and_then(|ctx| {
+                    let ctx = self.insert_into_ctx(ctx, x.clone(), None)?.ok_or(
+                        Error::DependencyError(DependencyError::ConflictDependency(name)),
+                    )?;
+                    Ok(ctx)
                 })
-            },
-        )?;
-        let initial_pkgs = self.next_candidates(&initial_pkgs, initial_ctx.clone())?;
+            })?;
+        let initial_pkgs = self.next_candidates(&initial_ctx, initial_ctx.clone())?;
         if let Some(initial_pkgs) = initial_pkgs {
-            stage_pkgs.push(initial_pkgs);
+            stage_ctxs.push(initial_pkgs);
         } else {
             return Ok(initial_ctx);
         }
@@ -94,16 +99,16 @@ impl TreeResolver {
                     )));
                 } else {
                     partial_solutions.pop().unwrap();
-                    drop(stage_pkgs.pop().unwrap());
+                    drop(stage_ctxs.pop().unwrap());
                     depth -= 1;
                     println!("rewinding to {}", depth);
                 }
             }
             let partial_solution = partial_solutions.get(depth).unwrap().clone();
-            if let Some(candidates) = stage_pkgs.get_mut(depth).unwrap().next() {
+            if let Some(candidates) = stage_ctxs.get_mut(depth).unwrap().next() {
                 if partial_solution.is_superset(
                     candidates
-                        .iter()
+                        .pkgs()
                         .map(|i| i.as_ref())
                         .collect_vec()
                         .as_slice(),
@@ -121,7 +126,7 @@ impl TreeResolver {
 
                 println!("searching candidates");
                 let next_candidates =
-                    self.next_candidates(&*candidates, partial_solution.clone())?;
+                    self.next_candidates(&candidates, partial_solution.clone())?;
                 let next_candidates = if let Some(v) = next_candidates {
                     v
                 } else {
@@ -132,7 +137,7 @@ impl TreeResolver {
                 println!("step into depth {}", depth);
                 depth_try_count = 0;
                 partial_solutions.push(partial_solution);
-                stage_pkgs.push(next_candidates);
+                stage_ctxs.push(next_candidates);
             } else {
                 rewind = true; // current node depleted with no solution found. backtracking...
             }
@@ -141,12 +146,12 @@ impl TreeResolver {
 
     fn next_candidates<'a>(
         &'a self,
-        candidates: &[Arc<PackageWithParent>],
+        candidates: &Ctx,
         partial_solution: Ctx,
-    ) -> Result<Option<Box<dyn Iterator<Item = VecPackageWithParent> + 'a>>> {
+    ) -> Result<Option<Box<dyn Iterator<Item = Ctx> + 'a>>> {
         // get deps of all candidates and merge them
         let merged_deps: Vec<_> = candidates
-            .iter()
+            .pkgs()
             .fold(HashMap::new(), |mut acc: HashMap<_, DependVersion>, x| {
                 let deps = x.dependencies();
                 for dep in deps {
@@ -180,15 +185,15 @@ impl TreeResolver {
                         pkg.into_iter()
                             .filter(move |pkg| !cloned_policy.is_mortal_blade(pkg).unwrap())
                             .sorted_by(|a, b| {
-                                let a = PackageWithParent::from(a);
-                                let b = PackageWithParent::from(b);
-                                if partial_solution.contains_exact(&a)          // prefer chosen packages
-                                    || cloned_policy_2.is_immortal(&a).unwrap()
+                                // let a = PackageNode::from(a);
+                                // let b = PackageNode::from(b);
+                                if partial_solution.contains_exact(a)          // prefer chosen packages
+                                    || cloned_policy_2.is_immortal(a).unwrap()
                                 // prefer immortal packages
                                 {
                                     Ordering::Less
-                                } else if partial_solution.contains_exact(&b)
-                                    || cloned_policy_2.is_immortal(&b).unwrap()
+                                } else if partial_solution.contains_exact(b)
+                                    || cloned_policy_2.is_immortal(b).unwrap()
                                 {
                                     Ordering::Greater
                                 } else {
@@ -196,14 +201,20 @@ impl TreeResolver {
                                 }
                             })
                             .take(5) // limit search space
-                            .map(PackageWithParent::from)
                             .map(Arc::new)
                     })
                     .collect_vec()
             })?;
 
         // [solution1, solution2, ...]
-        let next_candidates = resolved_deps.into_iter().multi_cartesian_product();
+        let next_candidates = resolved_deps
+            .into_iter()
+            .multi_cartesian_product()
+            .filter_map(|pkgs| {
+                pkgs.into_iter().fold(Some(Ctx::new()), |acc, x| {
+                    acc.and_then(|acc| acc.insert(x, None))
+                })
+            });
         Ok(Some(Box::new(next_candidates)))
     }
 }
