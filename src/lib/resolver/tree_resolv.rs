@@ -257,20 +257,20 @@ impl TreeResolver {
             .map(move |i| {
                 i.into_iter()
                     .sorted_by(|(_, a), (_, b)| b.len().cmp(&a.len())) // heuristic strategy: iter solution from packages with less deps
-                    .map(|i| (i, cloned_policy.clone())) // clone for closure use
-                    .map(move |((dep, pkgs), cloned_policy)| {
+                    .map(|i| (i, cloned_policy.clone(), cloned_policy.clone())) // clone for closure use
+                    .map(move |((dep, pkgs), cloned_policy, cloned_policy_2)| {
                         pkgs.into_iter()
-                            // .filter(move |pkg| !cloned_policy.is_mortal_blade(pkg).unwrap())
+                            .filter(move |pkg| !cloned_policy.is_mortal_blade(pkg).unwrap())
                             .sorted_by(|a, b| {
                                 // let a = PackageNode::from(a);
                                 // let b = PackageNode::from(b);
                                 if partial_solution.contains_exact(a)          // prefer chosen packages
-                                    || cloned_policy.is_immortal(a).unwrap()
+                                    || cloned_policy_2.is_immortal(a).unwrap()
                                 // prefer immortal packages
                                 {
                                     Ordering::Less
                                 } else if partial_solution.contains_exact(b)
-                                    || cloned_policy.is_immortal(b).unwrap()
+                                    || cloned_policy_2.is_immortal(b).unwrap()
                                 {
                                     Ordering::Greater
                                 } else {
