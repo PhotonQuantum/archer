@@ -1,4 +1,4 @@
-use std::collections::hash_map::Values;
+use std::collections::hash_map::{Values, ValuesMut};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
+use maplit::hashset;
 use petgraph::Graph;
 
 use crate::repository::Repository;
@@ -212,15 +213,6 @@ pub struct Context<T: PackageTrait> {
     pub provides: HashMap<String, Arc<DependVersion>>,
 }
 
-impl<T: PackageTrait> Context<T> {
-    pub fn is_empty(&self) -> bool {
-        self.packages.is_empty()
-    }
-    pub fn pkgs(&self) -> Values<String, Arc<T>> {
-        self.packages.values()
-    }
-}
-
 impl<T: PackageTrait> PartialEq for Context<T> {
     fn eq(&self, other: &Self) -> bool {
         self.packages == other.packages
@@ -238,6 +230,50 @@ impl<T: PackageTrait> Hash for Context<T> {
 }
 
 impl<T: PackageTrait> Context<T> {
+    pub fn is_empty(&self) -> bool {
+        self.packages.is_empty()
+    }
+
+    pub fn append_reason(&mut self, pkg: Arc<T>, reason: Arc<T>) {
+        self.reasons
+            .entry(pkg)
+            .and_modify(|reasons| {
+                reasons.insert(reason.clone());
+            })
+            .or_insert(hashset!(reason));
+    }
+
+    pub fn append_reasons(&mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) {
+        self.reasons
+            .entry(pkg)
+            .and_modify(|reasons| {
+                reasons.extend(reason.clone());
+            })
+            .or_insert(reason);
+    }
+
+    pub fn pkgs(&self) -> Values<String, Arc<T>> {
+        self.packages.values()
+    }
+
+    pub fn pkgs_mut(&mut self) -> ValuesMut<String, Arc<T>> {
+        self.packages.values_mut()
+    }
+
+    pub fn conflicts(&self, dep: &Depend) -> bool {
+        self.conflicts
+            .get(&*dep.name)
+            .map(|range| !range.intersect(&dep.version).is_empty())
+            .unwrap_or(false)
+    }
+
+    pub fn satisfies(&self, dep: &Depend) -> bool {
+        self.provides
+            .get(&*dep.name)
+            .map(|range| !range.intersect(&dep.version).is_empty())
+            .unwrap_or(false)
+    }
+
     pub fn is_superset(&self, other: &[&T]) -> bool {
         other.iter().all(|pkg| self.contains_exact(pkg))
     }
@@ -258,9 +294,12 @@ impl<T: PackageTrait> Context<T> {
             self.packages.insert(k, v2);
         }
         for (k, v) in other.reasons {
-            self.reasons.entry(k).and_modify(|reason| {
-                reason.extend(v);
-            });
+            self.reasons
+                .entry(k)
+                .and_modify(|reason| {
+                    reason.extend(v.clone());
+                })
+                .or_insert(v); // borrow checker...
         }
 
         for (k, v2) in other.provides {
@@ -322,10 +361,10 @@ impl<T: PackageTrait> Context<T> {
 
         !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<T>, reason: Option<Arc<T>>) -> Option<Self> {
+    pub fn insert(mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) -> Option<Self> {
         self.insert_mut(pkg, reason).then(|| self)
     }
-    pub fn insert_mut(&mut self, pkg: Arc<T>, reason: Option<Arc<T>>) -> bool {
+    pub fn insert_mut(&mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) -> bool {
         // TODO unchecked insert
         if !self.is_compatible(&*pkg) {
             false
@@ -335,11 +374,7 @@ impl<T: PackageTrait> Context<T> {
                 return existing.version() == pkg.version();
             }
             self.packages.insert(name, pkg.clone());
-            if let Some(reason) = reason {
-                let mut s = HashSet::new();
-                s.insert(reason);
-                self.reasons.insert(pkg.clone(), s);
-            }
+            self.reasons.insert(pkg.clone(), reason);
 
             let mut provides = pkg.provides();
             provides.push(Depend::from((&*pkg).as_ref()));
@@ -368,7 +403,7 @@ impl<T: PackageTrait> Context<T> {
     }
 }
 
-impl<T: PackageTrait> From<&Context<T>> for Graph<Arc<T>, ()> {
+impl<T: PackageTrait> From<&Context<T>> for Graph<Arc<T>, String> {
     fn from(g: &Context<T>) -> Self {
         let mut g_ = Graph::new();
         let mut map_pkg_idx = HashMap::new();
@@ -380,7 +415,7 @@ impl<T: PackageTrait> From<&Context<T>> for Graph<Arc<T>, ()> {
             let pkg_idx = map_pkg_idx.get(&*pkg).unwrap();
             reasons.iter().for_each(|reason| {
                 let reason_idx = map_pkg_idx.get(reason).unwrap();
-                g_.add_edge(*reason_idx, *pkg_idx, ());
+                g_.add_edge(*reason_idx, *pkg_idx, String::from(""));
             })
         });
         g_

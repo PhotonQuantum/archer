@@ -1,3 +1,4 @@
 /target
 /vgcore*
 /.idea
+/output.dot

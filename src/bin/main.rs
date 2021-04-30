@@ -1,8 +1,12 @@
+use std::fs::File;
+use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Result;
 use itertools::Itertools;
+use petgraph::dot::{Config, Dot};
+use petgraph::Graph;
 
 use archer_lib::repository::aur::AurRepo;
 use archer_lib::repository::cached::CachedRepository;
@@ -47,5 +51,8 @@ fn main() -> Result<()> {
             .map(|pkg| pkg.to_string())
             .join(", ")
     );
+    let mut f = File::create("output.dot")?;
+    let graph = Graph::from(&solution);
+    write!(f, "{}", Dot::with_config(&graph, &[Config::EdgeNoLabel])).unwrap();
     Ok(())
 }
