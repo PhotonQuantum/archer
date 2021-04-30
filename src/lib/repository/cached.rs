@@ -14,9 +14,9 @@ pub struct CachedRepository {
 }
 
 impl CachedRepository {
-    pub fn new(repo: impl Repository + 'static) -> Self {
+    pub fn new(repo: Arc<dyn Repository>) -> Self {
         Self {
-            inner: Arc::new(repo),
+            inner: repo,
             cache: Arc::new(Default::default()),
         }
     }

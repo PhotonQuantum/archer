@@ -10,6 +10,7 @@ use petgraph::Graph;
 
 use archer_lib::repository::aur::AurRepo;
 use archer_lib::repository::cached::CachedRepository;
+use archer_lib::repository::empty::EmptyRepository;
 use archer_lib::repository::merged::MergedRepository;
 use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
 use archer_lib::repository::Repository;
@@ -18,27 +19,23 @@ use archer_lib::resolver::types::ResolvePolicy;
 use archer_lib::types::Depend;
 
 fn main() -> Result<()> {
-    let remote_repo = Arc::new(PacmanRemote::new()) as Arc<dyn Repository>;
+    let pacman_remote_repo = Arc::new(PacmanRemote::new()) as Arc<dyn Repository>;
     let local_repo = Arc::new(PacmanLocal::new()) as Arc<dyn Repository>;
     let aur = Arc::new(AurRepo::new()) as Arc<dyn Repository>;
-    let remote_repo = Arc::new(CachedRepository::new(MergedRepository::new(vec![
-        remote_repo.clone(),
-        aur,
-    ])));
+    let remote_repo = Arc::new(CachedRepository::new(Arc::new(MergedRepository::new(
+        vec![pacman_remote_repo.clone(), aur],
+    ))));
     let policy = ResolvePolicy::new(
         remote_repo.clone(),
-        Arc::new(CachedRepository::new(MergedRepository::new(vec![
-            local_repo.clone(),
-        ]))),
-        Arc::new(CachedRepository::new(MergedRepository::new(vec![
-            local_repo,
-        ]))),
+        // Arc::new(CachedRepository::new(pacman_remote_repo)),
+        Arc::new(EmptyRepository::new()),
+        Arc::new(CachedRepository::new(local_repo)),
     );
     let mut resolver = TreeResolver::new(policy, false);
     let initial_package = remote_repo
-        .find_package(&Depend::from_str("crossover").unwrap())?
+        .find_package(&Depend::from_str("salt-viewer").unwrap())?
         .iter()
-        .find(|p| p.name() == "crossover")
+        .find(|p| p.name() == "salt-viewer")
         .unwrap()
         .clone();
     let solution = resolver.resolve(&[initial_package])?;

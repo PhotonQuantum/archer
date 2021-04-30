@@ -169,15 +169,18 @@ impl TreeResolver {
             .fold(
                 HashMap::new(),
                 |mut acc: HashMap<String, (Depend, Vec<Arc<Package>>)>, x| {
-                    x.dependencies().iter().for_each(|dep| {
-                        acc.entry(dep.name.clone())
-                            .and_modify(|(original_dep, pkgs)| {
-                                original_dep.version =
-                                    original_dep.version.union(&dep.version.clone());
-                                pkgs.push(x.clone())
-                            })
-                            .or_insert((dep.clone(), vec![x.clone()]));
-                    });
+                    x.dependencies()
+                        .iter()
+                        .filter(|dep| self.policy.skip_repo.find_package(dep).unwrap().is_empty()) // TODO error handling
+                        .for_each(|dep| {
+                            acc.entry(dep.name.clone())
+                                .and_modify(|(original_dep, pkgs)| {
+                                    original_dep.version =
+                                        original_dep.version.union(&dep.version.clone());
+                                    pkgs.push(x.clone())
+                                })
+                                .or_insert((dep.clone(), vec![x.clone()]));
+                        });
                     acc
                 },
             )

@@ -11,7 +11,7 @@
 - [ ] dependency resolving
   + [x] dfs search (find dependency closure)
   + [x] graph output (via petgraph)
-  + [ ] skip policy (ignore packages existing in certain repo)
+  + [x] skip policy (ignore packages existing in certain repo)
   + [ ] topo sort
   + [ ] support for makedepends
   + [x] batch query

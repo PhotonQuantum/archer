@@ -6,6 +6,7 @@ use crate::types::*;
 
 pub mod aur;
 pub mod cached;
+pub mod empty;
 pub mod merged;
 pub mod pacman;
 
