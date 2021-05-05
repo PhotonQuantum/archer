@@ -14,151 +14,6 @@ use crate::types::*;
 
 type ArcRepo = Arc<dyn Repository>;
 
-#[derive(Debug, Clone)]
-pub struct PackageNode {
-    data: Package,
-    // parent: Option<Arc<Box<PackageWithParent>>>
-    reason: Vec<Depend>,
-}
-
-impl PackageNode {
-    pub fn add_parent(mut self, parent: Depend) -> Self {
-        self.reason.push(parent);
-        self
-    }
-}
-
-impl Display for PackageNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.reason.is_empty() {
-            write!(f, "{}", self.data)
-        } else {
-            write!(
-                f,
-                "({}) -> {}",
-                self.reason.iter().map(|r| r.to_string()).join(","),
-                self.data
-            )
-        }
-    }
-}
-
-impl PartialEq for PackageNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.data.name() == other.data.name() && self.data.version() == other.data.version()
-    }
-}
-
-impl Eq for PackageNode {}
-
-impl Hash for PackageNode {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name().hash(state);
-        self.version().hash(state);
-    }
-}
-
-impl From<Package> for PackageNode {
-    fn from(pkg: Package) -> Self {
-        Self {
-            data: pkg,
-            reason: vec![],
-        }
-    }
-}
-
-impl From<&Package> for PackageNode {
-    fn from(pkg: &Package) -> Self {
-        Self {
-            data: pkg.clone(),
-            reason: vec![],
-        }
-    }
-}
-
-impl AsRef<Package> for PackageNode {
-    fn as_ref(&self) -> &Package {
-        &self.data
-    }
-}
-
-impl Deref for PackageNode {
-    type Target = Package;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-// TODO don't duplicate this
-impl PackageTrait for PackageNode {
-    fn name(&self) -> &str {
-        self.data.name()
-    }
-
-    fn version(&self) -> Version {
-        self.data.version()
-    }
-
-    fn description(&self) -> Option<&str> {
-        self.data.description()
-    }
-
-    fn url(&self) -> Option<&str> {
-        self.data.url()
-    }
-
-    fn dependencies(&self) -> Vec<Depend> {
-        self.data.dependencies()
-    }
-
-    fn conflicts(&self) -> Vec<Depend> {
-        self.data.conflicts()
-    }
-
-    fn provides(&self) -> Vec<Depend> {
-        self.data.provides()
-    }
-
-    fn replaces(&self) -> Vec<Depend> {
-        self.data.replaces()
-    }
-}
-
-impl PackageTrait for &PackageNode {
-    fn name(&self) -> &str {
-        self.data.name()
-    }
-
-    fn version(&self) -> Version {
-        self.data.version()
-    }
-
-    fn description(&self) -> Option<&str> {
-        self.data.description()
-    }
-
-    fn url(&self) -> Option<&str> {
-        self.data.url()
-    }
-
-    fn dependencies(&self) -> Vec<Depend> {
-        self.data.dependencies()
-    }
-
-    fn conflicts(&self) -> Vec<Depend> {
-        self.data.conflicts()
-    }
-
-    fn provides(&self) -> Vec<Depend> {
-        self.data.provides()
-    }
-
-    fn replaces(&self) -> Vec<Depend> {
-        self.data.replaces()
-    }
-}
-
 // TODO remove mutex cuz find_package(s) doesn't require mut now
 #[derive(Clone)]
 pub struct ResolvePolicy {
@@ -177,8 +32,8 @@ impl ResolvePolicy {
             immortal_cache: Arc::new(Default::default()),
         }
     }
-    pub fn is_mortal_blade(&self, pkg: impl PackageTrait) -> Result<bool> {
-        let dep = Depend::from(pkg.clone());
+    pub fn is_mortal_blade(&self, pkg: &Package) -> Result<bool> {
+        let dep = Depend::from(&pkg.clone());
         if let Some(mortal_blade) = self.immortal_cache.read().unwrap().get(&dep) {
             return Ok(*mortal_blade);
         }
@@ -194,8 +49,8 @@ impl ResolvePolicy {
         Ok(mortal_blade)
     }
 
-    pub fn is_immortal(&self, pkg: impl PackageTrait) -> Result<bool> {
-        let dep = Depend::from(pkg.clone());
+    pub fn is_immortal(&self, pkg: &Package) -> Result<bool> {
+        let dep = Depend::from(&pkg.clone());
         let immortal = self.immortal_repo.find_package(&dep).map(|immortals| {
             immortals
                 .into_iter()
@@ -206,22 +61,22 @@ impl ResolvePolicy {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct Context<T: PackageTrait> {
-    pub packages: HashMap<String, Arc<T>>,
-    pub reasons: HashMap<Arc<T>, HashSet<Arc<T>>>,
+pub struct Context {
+    pub packages: HashMap<String, Arc<Package>>,
+    pub reasons: HashMap<Arc<Package>, HashSet<Arc<Package>>>,
     pub conflicts: HashMap<String, Arc<DependVersion>>,
     pub provides: HashMap<String, Arc<DependVersion>>,
 }
 
-impl<T: PackageTrait> PartialEq for Context<T> {
+impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         self.packages == other.packages
     }
 }
 
-impl<T: PackageTrait> Eq for Context<T> {}
+impl Eq for Context {}
 
-impl<T: PackageTrait> Hash for Context<T> {
+impl Hash for Context {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for package in self.packages.values() {
             package.hash(state);
@@ -229,12 +84,12 @@ impl<T: PackageTrait> Hash for Context<T> {
     }
 }
 
-impl<T: PackageTrait> Context<T> {
+impl Context {
     pub fn is_empty(&self) -> bool {
         self.packages.is_empty()
     }
 
-    pub fn append_reason(&mut self, pkg: Arc<T>, reason: Arc<T>) {
+    pub fn append_reason(&mut self, pkg: Arc<Package>, reason: Arc<Package>) {
         self.reasons
             .entry(pkg)
             .and_modify(|reasons| {
@@ -243,7 +98,7 @@ impl<T: PackageTrait> Context<T> {
             .or_insert(hashset!(reason));
     }
 
-    pub fn append_reasons(&mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) {
+    pub fn append_reasons(&mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) {
         self.reasons
             .entry(pkg)
             .and_modify(|reasons| {
@@ -252,11 +107,11 @@ impl<T: PackageTrait> Context<T> {
             .or_insert(reason);
     }
 
-    pub fn pkgs(&self) -> Values<String, Arc<T>> {
+    pub fn pkgs(&self) -> Values<String, Arc<Package>> {
         self.packages.values()
     }
 
-    pub fn pkgs_mut(&mut self) -> ValuesMut<String, Arc<T>> {
+    pub fn pkgs_mut(&mut self) -> ValuesMut<String, Arc<Package>> {
         self.packages.values_mut()
     }
 
@@ -274,7 +129,7 @@ impl<T: PackageTrait> Context<T> {
             .unwrap_or(false)
     }
 
-    pub fn is_superset(&self, other: &[&T]) -> bool {
+    pub fn is_superset(&self, other: &[&Package]) -> bool {
         other.iter().all(|pkg| self.contains_exact(pkg))
     }
 
@@ -324,16 +179,16 @@ impl<T: PackageTrait> Context<T> {
             provides: Default::default(),
         }
     }
-    pub fn get(&self, name: &str) -> Option<&T> {
+    pub fn get(&self, name: &str) -> Option<&Package> {
         self.packages.get(name).map(|pkg| &**pkg)
     }
-    pub fn contains_exact(&self, pkg: &T) -> bool {
+    pub fn contains_exact(&self, pkg: &Package) -> bool {
         self.packages
             .get(pkg.name())
             .map(|candidate| &**candidate == pkg)
             .unwrap_or(false)
     }
-    pub fn is_compatible(&self, pkg: &T) -> bool {
+    pub fn is_compatible(&self, pkg: &Package) -> bool {
         if let Some(same_pkg_ver) = self
             .packages
             .get(pkg.name())
@@ -344,7 +199,7 @@ impl<T: PackageTrait> Context<T> {
 
         // let mut pkg_provides = vec![Depend::from(pkg)];
         let mut pkg_provides = vec![Depend::from(pkg.as_ref())];
-        pkg_provides.extend(pkg.provides());
+        pkg_provides.extend(pkg.provides().into_owned());
         let conflicts_conflict = pkg_provides.into_iter().any(|provide| {
             self.conflicts
                 .get(provide.name.as_str())
@@ -361,10 +216,10 @@ impl<T: PackageTrait> Context<T> {
 
         !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) -> Option<Self> {
+    pub fn insert(mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) -> Option<Self> {
         self.insert_mut(pkg, reason).then(|| self)
     }
-    pub fn insert_mut(&mut self, pkg: Arc<T>, reason: HashSet<Arc<T>>) -> bool {
+    pub fn insert_mut(&mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) -> bool {
         // TODO unchecked insert
         if !self.is_compatible(&*pkg) {
             false
@@ -376,7 +231,7 @@ impl<T: PackageTrait> Context<T> {
             self.packages.insert(name, pkg.clone());
             self.reasons.insert(pkg.clone(), reason);
 
-            let mut provides = pkg.provides();
+            let mut provides = pkg.provides().into_owned();
             provides.push(Depend::from((&*pkg).as_ref()));
             for provide in provides {
                 let depend_version = if let Some(pkg) = self.provides.get(provide.name.as_str()) {
@@ -387,7 +242,7 @@ impl<T: PackageTrait> Context<T> {
                 self.provides.insert(provide.name, Arc::new(depend_version));
             }
 
-            for conflict in pkg.conflicts() {
+            for conflict in pkg.conflicts().into_owned() {
                 let conflict_version = if let Some(pkg) = self.conflicts.get(conflict.name.as_str())
                 {
                     pkg.union(&conflict.version)
@@ -403,8 +258,8 @@ impl<T: PackageTrait> Context<T> {
     }
 }
 
-impl<T: PackageTrait> From<&Context<T>> for Graph<Arc<T>, String> {
-    fn from(g: &Context<T>) -> Self {
+impl From<&Context> for Graph<Arc<Package>, String> {
+    fn from(g: &Context) -> Self {
         let mut g_ = Graph::new();
         let mut map_pkg_idx = HashMap::new();
 

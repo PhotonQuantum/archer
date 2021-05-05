@@ -9,6 +9,7 @@ use ranges::{Domain, GenericRange, Ranges};
 pub use raur::Package as AurPackage;
 
 use crate::error::Error;
+use std::borrow::Cow;
 
 macro_rules! option_owned {
     ($e: expr) => {
@@ -122,7 +123,7 @@ impl Depend {
         (candidate.name() == self.name && self.version.satisfied_by(&candidate.version()))
             || candidate
                 .provides()
-                .into_iter()
+                .iter()
                 .any(|provide| provide.name == self.name && self.version.contains(&provide.version))
     }
 }
@@ -134,11 +135,11 @@ impl Display for Depend {
     }
 }
 
-impl<T: PackageTrait> From<T> for Depend {
-    fn from(pkg: T) -> Self {
+impl From<&Package> for Depend {
+    fn from(pkg: &Package) -> Self {
         Self {
             name: pkg.name().to_string(),
-            version: DependVersion(Ranges::from(pkg.version())),
+            version: DependVersion(Ranges::from(pkg.version().into_owned())),
         }
     }
 }
@@ -331,7 +332,7 @@ impl From<AurPackage> for Package {
     }
 }
 
-impl Package {
+impl<'a> Package {
     pub fn name(&self) -> &str {
         match self {
             Package::PacmanPackage(pkg) => pkg.name.as_str(),
@@ -339,10 +340,10 @@ impl Package {
         }
     }
 
-    pub fn version(&self) -> Version {
+    pub fn version(&'a self) -> Cow<'a, Version> {
         match self {
-            Package::PacmanPackage(pkg) => pkg.version.clone(),
-            Package::AurPackage(pkg) => Version(pkg.version.clone()),
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.version),
+            Package::AurPackage(pkg) => Cow::Owned(Version(pkg.version.clone())),
         }
     }
 
@@ -361,47 +362,47 @@ impl Package {
     }
 
     // TODO below: join same name into one DependVersion
-    pub fn dependencies(&self) -> Vec<Depend> {
+    pub fn dependencies(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
-            Package::PacmanPackage(pkg) => pkg.depends.clone(),
-            Package::AurPackage(pkg) => pkg
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.depends),
+            Package::AurPackage(pkg) => Cow::Owned(pkg
                 .depends
                 .iter()
                 .map(|s| Depend::from_str(s).unwrap())
-                .collect(),
+                .collect()),
         }
     }
 
-    pub fn conflicts(&self) -> Vec<Depend> {
+    pub fn conflicts(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
-            Package::PacmanPackage(pkg) => pkg.conflicts.clone(),
-            Package::AurPackage(pkg) => pkg
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.conflicts),
+            Package::AurPackage(pkg) => Cow::Owned(pkg
                 .conflicts
                 .iter()
                 .map(|s| Depend::from_str(s).unwrap())
-                .collect(),
+                .collect()),
         }
     }
 
-    pub fn provides(&self) -> Vec<Depend> {
+    pub fn provides(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
-            Package::PacmanPackage(pkg) => pkg.provides.clone(),
-            Package::AurPackage(pkg) => pkg
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.provides),
+            Package::AurPackage(pkg) => Cow::Owned(pkg
                 .provides
                 .iter()
                 .map(|s| Depend::from_str(s).unwrap())
-                .collect(),
+                .collect()),
         }
     }
 
-    pub fn replaces(&self) -> Vec<Depend> {
+    pub fn replaces(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
-            Package::PacmanPackage(pkg) => pkg.replaces.clone(),
-            Package::AurPackage(pkg) => pkg
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.replaces),
+            Package::AurPackage(pkg) => Cow::Owned(pkg
                 .replaces
                 .iter()
                 .map(|s| Depend::from_str(s).unwrap())
-                .collect(),
+                .collect()),
         }
     }
 }
@@ -409,87 +410,19 @@ impl Package {
 pub trait PackageTrait: Eq + AsRef<Package> + Display + Hash + Clone {
     fn name(&self) -> &str;
 
-    fn version(&self) -> Version;
+    fn version<'a>(&'a self) -> Cow<'a, Version>;
 
     fn description(&self) -> Option<&str>;
 
     fn url(&self) -> Option<&str>;
 
-    fn dependencies(&self) -> Vec<Depend>;
+    fn dependencies<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
 
-    fn conflicts(&self) -> Vec<Depend>;
+    fn conflicts<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
 
-    fn provides(&self) -> Vec<Depend>;
+    fn provides<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
 
-    fn replaces(&self) -> Vec<Depend>;
-}
-
-impl PackageTrait for Package {
-    fn name(&self) -> &str {
-        self.name()
-    }
-
-    fn version(&self) -> Version {
-        self.version()
-    }
-
-    fn description(&self) -> Option<&str> {
-        self.description()
-    }
-
-    fn url(&self) -> Option<&str> {
-        self.url()
-    }
-
-    fn dependencies(&self) -> Vec<Depend> {
-        self.dependencies()
-    }
-
-    fn conflicts(&self) -> Vec<Depend> {
-        self.conflicts()
-    }
-
-    fn provides(&self) -> Vec<Depend> {
-        self.provides()
-    }
-
-    fn replaces(&self) -> Vec<Depend> {
-        self.replaces()
-    }
-}
-
-impl PackageTrait for &Package {
-    fn name(&self) -> &str {
-        (**self).name()
-    }
-
-    fn version(&self) -> Version {
-        (**self).version()
-    }
-
-    fn description(&self) -> Option<&str> {
-        (**self).description()
-    }
-
-    fn url(&self) -> Option<&str> {
-        (**self).url()
-    }
-
-    fn dependencies(&self) -> Vec<Depend> {
-        (**self).dependencies()
-    }
-
-    fn conflicts(&self) -> Vec<Depend> {
-        (**self).conflicts()
-    }
-
-    fn provides(&self) -> Vec<Depend> {
-        (**self).provides()
-    }
-
-    fn replaces(&self) -> Vec<Depend> {
-        (**self).replaces()
-    }
+    fn replaces<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
 }
 
 // pub trait Package {

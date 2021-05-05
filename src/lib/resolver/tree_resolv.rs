@@ -10,7 +10,7 @@ use crate::types::*;
 
 use super::types::*;
 
-type Ctx = Context<Package>;
+type Ctx = Context;
 
 #[derive(Clone)]
 pub struct TreeResolver {

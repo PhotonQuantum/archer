@@ -27,15 +27,16 @@ fn main() -> Result<()> {
     ))));
     let policy = ResolvePolicy::new(
         remote_repo.clone(),
-        // Arc::new(CachedRepository::new(pacman_remote_repo)),
         Arc::new(EmptyRepository::new()),
+        // Arc::new(CachedRepository::new(pacman_remote_repo)),
+        // Arc::new(EmptyRepository::new()),
         Arc::new(CachedRepository::new(local_repo)),
     );
     let mut resolver = TreeResolver::new(policy, false);
     let initial_package = remote_repo
-        .find_package(&Depend::from_str("salt-viewer").unwrap())?
+        .find_package(&Depend::from_str("com.tencent.meeting.deepin").unwrap())?
         .iter()
-        .find(|p| p.name() == "salt-viewer")
+        .find(|p| p.name() == "com.tencent.meeting.deepin")
         .unwrap()
         .clone();
     let solution = resolver.resolve(&[initial_package])?;

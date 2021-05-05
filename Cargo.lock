@@ -56,7 +56,6 @@ dependencies = [
  "configparser",
  "fallible-iterator",
  "futures",
- "indexmap",
  "itertools",
  "lazy_static",
  "maplit",
