@@ -10,8 +10,6 @@ use crate::types::*;
 
 use super::types::*;
 
-type Ctx = Context;
-
 #[derive(Clone)]
 pub struct TreeResolver {
     policy: ResolvePolicy,
@@ -26,7 +24,7 @@ impl TreeResolver {
         }
     }
 
-    fn union_into_ctx(&self, ctx: Ctx, pkgs: Ctx) -> Result<Ctx> {
+    fn union_into_ctx(&self, ctx: Context, pkgs: Context) -> Result<Context> {
         ctx.union(pkgs).ok_or_else(|| {
             Error::DependencyError(DependencyError::ConflictDependency(String::from(
                 "can't be merged",
@@ -36,10 +34,10 @@ impl TreeResolver {
 
     fn insert_into_ctx(
         &self,
-        mut ctx: Ctx,
+        mut ctx: Context,
         pkg: Arc<Package>,
         reason: HashSet<Arc<Package>>,
-    ) -> Result<Option<Ctx>> {
+    ) -> Result<Option<Context>> {
         Ok(self
             .insert_into_ctx_mut(&mut ctx, pkg, reason)?
             .then(|| ctx))
@@ -47,7 +45,7 @@ impl TreeResolver {
 
     fn insert_into_ctx_mut(
         &self,
-        ctx: &mut Ctx,
+        ctx: &mut Context,
         pkg: Arc<Package>,
         reason: HashSet<Arc<Package>>,
     ) -> Result<bool> {
@@ -61,15 +59,15 @@ impl TreeResolver {
     }
 
     // TODO dfs only, no topo sort yet
-    pub fn resolve(&mut self, pkgs: &[Package]) -> Result<Ctx> {
-        let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Ctx>>> = vec![];
+    pub fn resolve(&mut self, pkgs: &[Package]) -> Result<Context> {
+        let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Context>>> = vec![];
         let mut depth = 0;
 
         // push initial set
         let initial_ctx = pkgs
             .iter()
             .cloned()
-            .fold(Ok(Ctx::new()), |acc: Result<_>, x| {
+            .fold(Ok(Context::new()), |acc: Result<_>, x| {
                 let name = x.to_string();
                 let x = Arc::new(x);
                 acc.and_then(|ctx| {
@@ -153,9 +151,9 @@ impl TreeResolver {
 
     fn next_candidates<'a>(
         &'a self,
-        candidates: &Ctx,
-        partial_solution: Ctx,
-    ) -> Result<Option<Box<dyn Iterator<Item = Ctx> + 'a>>> {
+        candidates: &Context,
+        partial_solution: Context,
+    ) -> Result<Option<Box<dyn Iterator<Item = Context> + 'a>>> {
         let mut base_ctx = candidates.clone();
 
         // get deps of all candidates and merge them

@@ -1,11 +1,8 @@
 use std::collections::hash_map::{Values, ValuesMut};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
-use itertools::Itertools;
 use maplit::hashset;
 use petgraph::Graph;
 
@@ -198,7 +195,7 @@ impl Context {
         };
 
         // let mut pkg_provides = vec![Depend::from(pkg)];
-        let mut pkg_provides = vec![Depend::from(pkg.as_ref())];
+        let mut pkg_provides = vec![Depend::from(pkg)];
         pkg_provides.extend(pkg.provides().into_owned());
         let conflicts_conflict = pkg_provides.into_iter().any(|provide| {
             self.conflicts
@@ -232,7 +229,7 @@ impl Context {
             self.reasons.insert(pkg.clone(), reason);
 
             let mut provides = pkg.provides().into_owned();
-            provides.push(Depend::from((&*pkg).as_ref()));
+            provides.push(Depend::from(&*pkg));
             for provide in provides {
                 let depend_version = if let Some(pkg) = self.provides.get(provide.name.as_str()) {
                     pkg.union(&provide.version)

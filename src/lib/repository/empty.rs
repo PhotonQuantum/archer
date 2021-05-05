@@ -13,11 +13,11 @@ impl EmptyRepository {
 }
 
 impl Repository for EmptyRepository {
-    fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
+    fn find_package(&self, _pkg: &Depend) -> Result<Vec<Package>> {
         Ok(vec![])
     }
 
-    fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
+    fn find_packages(&self, _pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
         Ok(HashMap::new())
     }
 }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -9,7 +10,6 @@ use ranges::{Domain, GenericRange, Ranges};
 pub use raur::Package as AurPackage;
 
 use crate::error::Error;
-use std::borrow::Cow;
 
 macro_rules! option_owned {
     ($e: expr) => {
@@ -365,78 +365,48 @@ impl<'a> Package {
     pub fn dependencies(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.depends),
-            Package::AurPackage(pkg) => Cow::Owned(pkg
-                .depends
-                .iter()
-                .map(|s| Depend::from_str(s).unwrap())
-                .collect()),
+            Package::AurPackage(pkg) => Cow::Owned(
+                pkg.depends
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 
     pub fn conflicts(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.conflicts),
-            Package::AurPackage(pkg) => Cow::Owned(pkg
-                .conflicts
-                .iter()
-                .map(|s| Depend::from_str(s).unwrap())
-                .collect()),
+            Package::AurPackage(pkg) => Cow::Owned(
+                pkg.conflicts
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 
     pub fn provides(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.provides),
-            Package::AurPackage(pkg) => Cow::Owned(pkg
-                .provides
-                .iter()
-                .map(|s| Depend::from_str(s).unwrap())
-                .collect()),
+            Package::AurPackage(pkg) => Cow::Owned(
+                pkg.provides
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 
     pub fn replaces(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.replaces),
-            Package::AurPackage(pkg) => Cow::Owned(pkg
-                .replaces
-                .iter()
-                .map(|s| Depend::from_str(s).unwrap())
-                .collect()),
+            Package::AurPackage(pkg) => Cow::Owned(
+                pkg.replaces
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 }
-
-pub trait PackageTrait: Eq + AsRef<Package> + Display + Hash + Clone {
-    fn name(&self) -> &str;
-
-    fn version<'a>(&'a self) -> Cow<'a, Version>;
-
-    fn description(&self) -> Option<&str>;
-
-    fn url(&self) -> Option<&str>;
-
-    fn dependencies<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
-
-    fn conflicts<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
-
-    fn provides<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
-
-    fn replaces<'a>(&'a self) -> Cow<'a, Vec<Depend>>;
-}
-
-// pub trait Package {
-//     fn name(&self) -> &str;
-//     fn version(&self) -> Version<'_>;
-//     fn description(&self) -> Option<&str>;
-//     // fn url(&self) -> &str;
-//     // fn licenses(&self) -> Vec<&str>;
-//     // fn groups(&self) -> Vec<&str>;
-//     // fn depends(&self) -> Vec<&str>;
-//     // + optdepends
-//     // + checkdepends
-//     // + makedepends
-//     // + conflicts
-//     // + provides
-//     // + replaces
-// }
