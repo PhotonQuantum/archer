@@ -9,6 +9,7 @@ pub mod cached;
 pub mod empty;
 pub mod merged;
 pub mod pacman;
+pub mod custom;
 
 pub trait Repository: Debug + Send + Sync {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>>;
