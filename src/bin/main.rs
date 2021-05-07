@@ -15,8 +15,9 @@ use archer_lib::repository::merged::MergedRepository;
 use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
 use archer_lib::repository::Repository;
 use archer_lib::resolver::tree_resolv::TreeResolver;
-use archer_lib::resolver::types::ResolvePolicy;
+use archer_lib::resolver::types::{ResolvePolicy, DependChoice, always_depend};
 use archer_lib::types::Depend;
+use enumflags2::BitFlags;
 
 fn main() -> Result<()> {
     let pacman_remote_repo = Arc::new(PacmanRemote::new()) as Arc<dyn Repository>;
@@ -32,14 +33,14 @@ fn main() -> Result<()> {
         // Arc::new(EmptyRepository::new()),
         Arc::new(CachedRepository::new(local_repo)),
     );
-    let mut resolver = TreeResolver::new(policy, false);
+    let resolver = TreeResolver::new(policy, false);
     let initial_package = remote_repo
         .find_package(&Depend::from_str("com.tencent.meeting.deepin").unwrap())?
         .iter()
         .find(|p| p.name() == "com.tencent.meeting.deepin")
         .unwrap()
         .clone();
-    let solution = resolver.resolve(&[initial_package])?;
+    let solution = resolver.resolve(&[initial_package], always_depend)?;
     println!(
         "{} packages: \n{:#?}",
         solution.packages.len(),

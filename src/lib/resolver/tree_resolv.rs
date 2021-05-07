@@ -51,13 +51,14 @@ impl TreeResolver {
     }
 
     // TODO dfs only, no topo sort yet
-    pub fn resolve(&mut self, pkgs: &[Package]) -> Result<Context> {
+    pub fn resolve(&self, pkgs: &[Package], depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy) -> Result<Context> {
         let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Context>>> = vec![];
         let mut depth = 0;
 
         // push initial set
         let initial_ctx = pkgs
             .iter()
+            .filter(|pkg|self.policy.skip_repo.find_package(&Depend::from(*pkg)).unwrap().is_empty())
             .cloned()
             .fold(Ok(Context::new()), |acc: Result<_>, x| {
                 let name = x.to_string();
@@ -69,7 +70,8 @@ impl TreeResolver {
                     Ok(ctx)
                 })
             })?;
-        let initial_pkgs = self.next_candidates(&initial_ctx, initial_ctx.clone())?;
+        let initial_pkgs =
+            self.next_candidates(&initial_ctx, initial_ctx.clone(), depend_policy_fn)?;
         if let Some(initial_pkgs) = initial_pkgs {
             stage_ctxs.push(initial_pkgs);
         } else {
@@ -105,11 +107,10 @@ impl TreeResolver {
                         .as_slice(),
                 ); // no new dependency, solution found
 
-                let partial_solution =
-                    match partial_solution.union(candidates.clone()) {
-                        Some(v) => v,
-                        None => continue, // not accepted, try the next set of candidates
-                    };
+                let partial_solution = match partial_solution.union(candidates.clone()) {
+                    Some(v) => v,
+                    None => continue, // not accepted, try the next set of candidates
+                };
 
                 if solution_found {
                     return Ok(partial_solution);
@@ -118,7 +119,8 @@ impl TreeResolver {
                 // Current set of candidates accepted, start forming next stage
 
                 println!("searching candidates");
-                let next_candidates = self.next_candidates(&candidates, partial_solution.clone());
+                let next_candidates =
+                    self.next_candidates(&candidates, partial_solution.clone(), depend_policy_fn);
                 let next_candidates = if let Err(Error::DependencyError(_)) = next_candidates {
                     continue; // all solutions derived from current set of candidates will cause a conflict, try the next set of candidates
                 } else {
@@ -145,6 +147,7 @@ impl TreeResolver {
         &'a self,
         candidates: &Context,
         partial_solution: Context,
+        depend_policy_fn: impl Fn(&Package) -> DependPolicy,
     ) -> Result<Option<Box<dyn Iterator<Item = Context> + 'a>>> {
         let mut base_ctx = candidates.clone();
 
@@ -159,18 +162,39 @@ impl TreeResolver {
             .fold(
                 HashMap::new(),
                 |mut acc: HashMap<String, (Depend, Vec<Arc<Package>>)>, x| {
-                    x.dependencies()
-                        .iter()
-                        .filter(|dep| self.policy.skip_repo.find_package(dep).unwrap().is_empty()) // TODO error handling
-                        .for_each(|dep| {
-                            acc.entry(dep.name.clone())
-                                .and_modify(|(original_dep, pkgs)| {
-                                    original_dep.version =
-                                        original_dep.version.union(&dep.version.clone());
-                                    pkgs.push(x.clone())
-                                })
-                                .or_insert((dep.clone(), vec![x.clone()]));
-                        });
+                    let depend_policy = depend_policy_fn(x.as_ref());
+                    if depend_policy.contains(DependChoice::Depends) {
+                        x.depends()
+                            .iter()
+                            .filter(|dep| {
+                                self.policy.skip_repo.find_package(dep).unwrap().is_empty()
+                            }) // TODO error handling
+                            .for_each(|dep| {
+                                acc.entry(dep.name.clone())
+                                    .and_modify(|(original_dep, pkgs)| {
+                                        original_dep.version =
+                                            original_dep.version.union(&dep.version.clone());
+                                        pkgs.push(x.clone())
+                                    })
+                                    .or_insert((dep.clone(), vec![x.clone()]));
+                            });
+                    }
+                    if depend_policy.contains(DependChoice::MakeDepends) {
+                        x.make_depends()
+                            .iter()
+                            .filter(|dep| {
+                                self.policy.skip_repo.find_package(dep).unwrap().is_empty()
+                            }) // TODO error handling
+                            .for_each(|dep| {
+                                acc.entry(dep.name.clone())
+                                    .and_modify(|(original_dep, pkgs)| {
+                                        original_dep.version =
+                                            original_dep.version.union(&dep.version.clone());
+                                        pkgs.push(x.clone())
+                                    })
+                                    .or_insert((dep.clone(), vec![x.clone()]));
+                            });
+                    }
                     acc
                 },
             )

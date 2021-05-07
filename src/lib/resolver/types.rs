@@ -3,11 +3,13 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};
 
+use enumflags2::{bitflags, BitFlags};
 use maplit::hashset;
 use petgraph::Graph;
 
 use crate::repository::Repository;
 use crate::types::*;
+use alpm::Dep;
 
 type ArcRepo = Arc<dyn Repository>;
 
@@ -18,6 +20,27 @@ pub struct ResolvePolicy {
     pub skip_repo: ArcRepo,
     pub immortal_repo: ArcRepo,
     pub immortal_cache: Arc<RwLock<HashMap<Depend, bool>>>,
+}
+
+#[bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum DependChoice {
+    Depends,
+    MakeDepends,
+}
+
+pub type DependPolicy = BitFlags<DependChoice>;
+
+pub fn always_depend(_: &Package) -> DependPolicy {
+    BitFlags::from(DependChoice::Depends)
+}
+
+pub fn makedepend_if_aur(pkg: &Package) -> DependPolicy {
+    match pkg {
+        Package::PacmanPackage(_) => BitFlags::from(DependChoice::Depends),
+        Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends
+    }
 }
 
 impl ResolvePolicy {
@@ -259,7 +282,11 @@ impl Context {
         let mut g = Graph::from(self);
         g.reverse();
         let sorted = petgraph::algo::toposort(&g, None).unwrap();
-        sorted.into_iter().map(|node|g.node_weight(node).unwrap()).cloned().collect()
+        sorted
+            .into_iter()
+            .map(|node| g.node_weight(node).unwrap())
+            .cloned()
+            .collect()
     }
 }
 

@@ -224,6 +224,12 @@ pub struct OwnedPacmanPackage {
     has_scriptlet: bool,
 }
 
+impl Display for OwnedPacmanPackage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.name, self.version)
+    }
+}
+
 impl From<PacmanPackage<'_>> for OwnedPacmanPackage {
     fn from(pkg: PacmanPackage) -> Self {
         OwnedPacmanPackage::from(&pkg)
@@ -256,12 +262,12 @@ impl From<&PacmanPackage<'_>> for OwnedPacmanPackage {
             licenses: vec![],
             groups: vec![],
             depends: pkg.depends().iter().map(Depend::from).collect(),
-            optdepends: vec![],
-            checkdepends: vec![],
-            makedepends: vec![],
+            optdepends: pkg.optdepends().iter().map(Depend::from).collect(),
+            checkdepends: pkg.checkdepends().iter().map(Depend::from).collect(),
+            makedepends: pkg.makedepends().iter().map(Depend::from).collect(),
             conflicts: pkg.conflicts().iter().map(Depend::from).collect(),
             provides: pkg.provides().iter().map(Depend::from).collect(),
-            replaces: vec![],
+            replaces: pkg.replaces().iter().map(Depend::from).collect(),
             files: vec![],
             backup: vec![],
             db: pkg.db().map(|db| db.name().to_owned()),
@@ -286,7 +292,7 @@ impl PartialOrd for Package {
             Ordering::Equal => match (self, other) {
                 (PacmanPackage(_), AurPackage(_)) => Ordering::Greater,
                 (AurPackage(_), PacmanPackage(_)) => Ordering::Less,
-                _ => other.dependencies().len().cmp(&self.dependencies().len()),
+                _ => other.depends().len().cmp(&self.depends().len()),
             },
             ord => ord,
         })
@@ -301,7 +307,11 @@ impl AsRef<Package> for Package {
 
 impl Display for Package {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.name(), self.version())
+        let source = match self {
+            Package::PacmanPackage(_) => "pacman",
+            Package::AurPackage(_) => "aur"
+        };
+        write!(f, "[{}] {} {}", source, self.name(), self.version())
     }
 }
 
@@ -362,11 +372,24 @@ impl<'a> Package {
     }
 
     // TODO below: join same name into one DependVersion
-    pub fn dependencies(&'a self) -> Cow<'a, Vec<Depend>> {
+    pub fn depends(&'a self) -> Cow<'a, Vec<Depend>> {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.depends),
             Package::AurPackage(pkg) => Cow::Owned(
                 pkg.depends
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
+        }
+    }
+
+    // TODO below: join same name into one DependVersion
+    pub fn make_depends(&'a self) -> Cow<'a, Vec<Depend>> {
+        match self {
+            Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.makedepends),
+            Package::AurPackage(pkg) => Cow::Owned(
+                pkg.make_depends
                     .iter()
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),
