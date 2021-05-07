@@ -59,6 +59,8 @@ jobs:
           components: rustfmt, clippy
           toolchain: nightly
           default: true
+      - name: Populate Pacman Database️️ 🛎️
+        run: pacman -Syu --noconfirm
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:
