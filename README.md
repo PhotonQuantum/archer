@@ -13,7 +13,7 @@
   + [x] graph output (via petgraph)
   + [x] skip policy (ignore packages existing in certain repo)
   + [x] topo sort
-  + [ ] support for makedepends
+  + [x] support for makedepends
   + [x] batch query
   + [x] parallel query for aur
   + [ ] custom pkgbuild support
