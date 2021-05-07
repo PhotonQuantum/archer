@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use fallible_iterator::{convert, FallibleIterator};
 use itertools::Itertools;
 
 use crate::repository::Repository;
@@ -23,13 +22,11 @@ impl Repository for MergedRepository {
     // once there's valid response from a repo for each package, it won't be queried against succeeding repos
 
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
-        convert(self.repos.iter().map(Ok)).fold(vec![], |mut acc, repo: &Arc<dyn Repository>| {
-            if acc.is_empty() {
-                let result = repo.find_package(pkg)?;
-                acc.extend(result);
-            }
-            Ok(acc)
-        })
+        self.repos
+            .iter()
+            .map(|repo| repo.find_package(pkg))
+            .find(|result| result.is_ok())
+            .unwrap_or_else(|| Ok(vec![]))
     }
 
     fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
@@ -37,7 +34,9 @@ impl Repository for MergedRepository {
         for name in pkgs {
             base.insert(name.clone().clone(), vec![]);
         }
-        convert(self.repos.iter().map(Ok)).fold(base, |mut acc, repo: &Arc<dyn Repository>| {
+
+        // use try_fold instead of try_find here because we want Vec<Package> instead of ArcRepo
+        self.repos.iter().try_fold(base, |mut acc, repo| {
             let missed_pkgs = acc
                 .iter()
                 .filter(|(_, pkgs)| pkgs.is_empty())
