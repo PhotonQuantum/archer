@@ -9,8 +9,8 @@ on:
 name: Test
 
 jobs:
-  test:
-    name: Lint and Test
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -21,7 +21,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-test
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-lint
       - uses: actions-rs/toolchain@v1
         name: Setup Cargo Toolchain 🛎️
         with:
@@ -38,6 +38,27 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout 🛎️
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-test
+      - uses: actions-rs/toolchain@v1
+        name: Setup Cargo Toolchain 🛎️
+        with:
+          components: rustfmt, clippy
+          toolchain: nightly
+          default: true
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:
