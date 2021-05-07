@@ -1,6 +1,9 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
+use itertools::Itertools;
+use rstest::rstest;
+
 use archer_lib::repository::aur::AurRepo;
 use archer_lib::repository::cached::CachedRepository;
 use archer_lib::repository::empty::EmptyRepository;
@@ -12,16 +15,18 @@ use archer_lib::resolver::tree_resolv::TreeResolver;
 use archer_lib::resolver::types::{always_depend, ResolvePolicy};
 use archer_lib::types::*;
 
-use rstest::rstest;
-use itertools::Itertools;
-
 fn must_plan(pkg: &str) {
     println!("Planning {}", pkg);
     let mut planner = PlanBuilder::new();
-    planner.add_package(&Depend::from_str(pkg).unwrap()).expect("can't search package");
+    planner
+        .add_package(&Depend::from_str(pkg).unwrap())
+        .expect("can't search package");
     let plan = planner.build().expect("can't build plan");
     assert!(!plan.is_empty(), "plan is empty");
-    println!("Plan: {:#?}", plan.iter().map(|act|act.to_string()).collect_vec());
+    println!(
+        "Plan: {:#?}",
+        plan.iter().map(|act| act.to_string()).collect_vec()
+    );
 }
 
 fn must_resolve(pkg: &str, skip_remote: bool) {
@@ -34,7 +39,11 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
     ))));
     let policy = ResolvePolicy::new(
         remote_repo.clone(),
-        if skip_remote { Arc::new(CachedRepository::new(pacman_remote_repo)) } else { Arc::new(EmptyRepository::new()) },
+        if skip_remote {
+            Arc::new(CachedRepository::new(pacman_remote_repo))
+        } else {
+            Arc::new(EmptyRepository::new())
+        },
         Arc::new(CachedRepository::new(local_repo)),
     );
     let resolver = TreeResolver::new(policy, false);
@@ -45,9 +54,14 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         .find(|p| p.name() == pkg)
         .unwrap()
         .clone();
-    let solution = resolver.resolve(&[initial_package], always_depend).expect("can't resolve");
+    let solution = resolver
+        .resolve(&[initial_package], always_depend)
+        .expect("can't resolve");
     assert!(!solution.packages.is_empty(), "solution is empty");
-    println!("Result: {:#?}", solution.pkgs().map(|pkg|pkg.to_string()).collect_vec());
+    println!(
+        "Result: {:#?}",
+        solution.pkgs().map(|pkg| pkg.to_string()).collect_vec()
+    );
 }
 
 #[rstest]
