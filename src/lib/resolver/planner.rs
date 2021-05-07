@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use enumflags2::BitFlags;
+use itertools::Itertools;
 
 use crate::repository::aur::AurRepo;
 use crate::repository::cached::CachedRepository;
@@ -11,8 +12,6 @@ use crate::repository::Repository;
 use crate::resolver::tree_resolv::TreeResolver;
 use crate::resolver::types::{always_depend, makedepend_if_aur, ResolvePolicy};
 use crate::types::*;
-use itertools::Itertools;
-use std::fmt::{Formatter, Display};
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum PlanAction {
@@ -55,7 +54,8 @@ impl Default for PlanBuilder {
         let aur_policy =
             ResolvePolicy::new(global_repo.clone(), remote_repo.clone(), local_repo.clone());
         let remote_policy = ResolvePolicy::new(remote_repo, local_repo.clone(), local_repo.clone());
-        let global_policy = ResolvePolicy::new(global_repo.clone(), local_repo.clone(), local_repo.clone());
+        let global_policy =
+            ResolvePolicy::new(global_repo.clone(), local_repo.clone(), local_repo.clone());
 
         let aur_resolver = TreeResolver::new(aur_policy, false);
         let pacman_resolver = TreeResolver::new(remote_policy, true);
@@ -105,11 +105,11 @@ impl PlanBuilder {
                 .global_repo
                 .find_packages(&**pkg_to_build.depends())?
                 .into_iter()
-                .filter_map(|(_, mut v)|{
+                .filter_map(|(_, mut v)| {
                     let first_pkg = v.pop().unwrap();
                     match first_pkg {
                         Package::PacmanPackage(_) => None,
-                        Package::AurPackage(_) => Some(first_pkg)
+                        Package::AurPackage(_) => Some(first_pkg),
                     }
                 })
                 .collect_vec();
@@ -126,7 +126,7 @@ impl PlanBuilder {
                     }
                 }
                 if skip {
-                    continue
+                    continue;
                 }
                 if let Some(pkg) = deps.pop() {
                     match pkg {
@@ -164,7 +164,10 @@ impl PlanBuilder {
             }
 
             // need to build its aur dependencies
-            println!("need to build: {}", aur_deps.iter().map(|pkg|pkg.to_string()).join(", "));
+            println!(
+                "need to build: {}",
+                aur_deps.iter().map(|pkg| pkg.to_string()).join(", ")
+            );
             pkgs_to_build.extend(aur_deps);
 
             // build this package

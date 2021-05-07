@@ -51,14 +51,24 @@ impl TreeResolver {
     }
 
     // TODO dfs only, no topo sort yet
-    pub fn resolve(&self, pkgs: &[Package], depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy) -> Result<Context> {
+    pub fn resolve(
+        &self,
+        pkgs: &[Package],
+        depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy,
+    ) -> Result<Context> {
         let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Context>>> = vec![];
         let mut depth = 0;
 
         // push initial set
         let initial_ctx = pkgs
             .iter()
-            .filter(|pkg|self.policy.skip_repo.find_package(&Depend::from(*pkg)).unwrap().is_empty())
+            .filter(|pkg| {
+                self.policy
+                    .skip_repo
+                    .find_package(&Depend::from(*pkg))
+                    .unwrap()
+                    .is_empty()
+            })
             .cloned()
             .fold(Ok(Context::new()), |acc: Result<_>, x| {
                 let name = x.to_string();

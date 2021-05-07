@@ -9,7 +9,6 @@ use petgraph::Graph;
 
 use crate::repository::Repository;
 use crate::types::*;
-use alpm::Dep;
 
 type ArcRepo = Arc<dyn Repository>;
 
@@ -39,7 +38,7 @@ pub fn always_depend(_: &Package) -> DependPolicy {
 pub fn makedepend_if_aur(pkg: &Package) -> DependPolicy {
     match pkg {
         Package::PacmanPackage(_) => BitFlags::from(DependChoice::Depends),
-        Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends
+        Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
     }
 }
 

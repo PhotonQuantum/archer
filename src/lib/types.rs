@@ -309,7 +309,7 @@ impl Display for Package {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let source = match self {
             Package::PacmanPackage(_) => "pacman",
-            Package::AurPackage(_) => "aur"
+            Package::AurPackage(_) => "aur",
         };
         write!(f, "[{}] {} {}", source, self.name(), self.version())
     }
