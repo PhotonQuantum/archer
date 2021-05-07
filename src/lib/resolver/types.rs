@@ -253,6 +253,14 @@ impl Context {
             true
         }
     }
+
+    // TODO deal with cycles & custom impl
+    pub fn topo_sort(&self) -> Vec<Arc<Package>> {
+        let mut g = Graph::from(self);
+        g.reverse();
+        let sorted = petgraph::algo::toposort(&g, None).unwrap();
+        sorted.into_iter().map(|node|g.node_weight(node).unwrap()).cloned().collect()
+    }
 }
 
 impl From<&Context> for Graph<Arc<Package>, String> {
