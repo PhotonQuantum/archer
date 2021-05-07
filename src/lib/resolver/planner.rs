@@ -96,11 +96,12 @@ impl PlanBuilder {
         let mut pkgs_to_build: VecDeque<Package> = VecDeque::new();
         pkgs_to_build.extend(self.pkgs);
         while let Some(pkg_to_build) = pkgs_to_build.pop_front() {
-            println!("searching makedeps");
+            // search makedepends
             let make_deps = self
                 .global_repo
                 .find_packages(&**pkg_to_build.make_depends())?;
-            println!("searching pkg aur deps");
+
+            // search aur depends
             let aur_deps = self
                 .global_repo
                 .find_packages(&**pkg_to_build.depends())?
@@ -115,12 +116,13 @@ impl PlanBuilder {
                 .collect_vec();
             let mut aur_make_deps = vec![];
             let mut pacman_make_deps = vec![];
-            println!("splitting deps");
+
+            // split make depends by source (aur/pacman)
             for (_, mut deps) in make_deps {
                 let mut skip = false;
                 for dep in &deps {
                     if !self.local_repo.find_package(&Depend::from(dep))?.is_empty() {
-                        println!("local repo already has {}, skipped", dep);
+                        // skip existing packages in local repo
                         skip = true;
                         break;
                     }
@@ -137,7 +139,6 @@ impl PlanBuilder {
             }
 
             // build & install aur make dependencies
-            println!("resolve aur mkdeps");
             for pkg in self
                 .global_resolver
                 .resolve(&*aur_make_deps, makedepend_if_aur)?
@@ -154,7 +155,6 @@ impl PlanBuilder {
             // install pacman make dependencies
             // Note
             // pacman makedeps are installed behind aur deps to avoid being uninstalled later by deps of aur makedeps
-            println!("resolve pacman mkdeps");
             for pkg in self
                 .pacman_resolver
                 .resolve(&*pacman_make_deps, always_depend)?
@@ -164,10 +164,6 @@ impl PlanBuilder {
             }
 
             // need to build its aur dependencies
-            println!(
-                "need to build: {}",
-                aur_deps.iter().map(|pkg| pkg.to_string()).join(", ")
-            );
             pkgs_to_build.extend(aur_deps);
 
             // build this package
