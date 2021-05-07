@@ -18,8 +18,18 @@ use archer_lib::resolver::tree_resolv::TreeResolver;
 use archer_lib::resolver::types::{ResolvePolicy, DependChoice, always_depend};
 use archer_lib::types::Depend;
 use enumflags2::BitFlags;
+use archer_lib::resolver::planner::PlanBuilder;
 
 fn main() -> Result<()> {
+    let mut planner = PlanBuilder::new();
+    println!("finding agda");
+    // planner.add_package(&Depend::from_str("firedragon").unwrap())?;
+    planner.add_package(&Depend::from_str("fcft").unwrap())?;
+    println!("building plan");
+    let result = planner.build()?;
+    println!("Plan: {:#?}", result.into_iter().map(|act|act.to_string()).collect_vec());
+    return Ok(());
+
     let pacman_remote_repo = Arc::new(PacmanRemote::new()) as Arc<dyn Repository>;
     let local_repo = Arc::new(PacmanLocal::new()) as Arc<dyn Repository>;
     let aur = Arc::new(AurRepo::new()) as Arc<dyn Repository>;
@@ -35,9 +45,9 @@ fn main() -> Result<()> {
     );
     let resolver = TreeResolver::new(policy, false);
     let initial_package = remote_repo
-        .find_package(&Depend::from_str("com.tencent.meeting.deepin").unwrap())?
+        .find_package(&Depend::from_str("m4").unwrap())?
         .iter()
-        .find(|p| p.name() == "com.tencent.meeting.deepin")
+        .find(|p| p.name() == "m4")
         .unwrap()
         .clone();
     let solution = resolver.resolve(&[initial_package], always_depend)?;

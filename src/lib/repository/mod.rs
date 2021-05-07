@@ -6,10 +6,10 @@ use crate::types::*;
 
 pub mod aur;
 pub mod cached;
+pub mod custom;
 pub mod empty;
 pub mod merged;
 pub mod pacman;
-pub mod custom;
 
 pub trait Repository: Debug + Send + Sync {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>>;
