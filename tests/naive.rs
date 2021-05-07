@@ -60,7 +60,11 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
     assert!(!solution.packages.is_empty(), "solution is empty");
     println!(
         "Result: {:#?}",
-        solution.pkgs().map(|pkg| pkg.to_string()).collect_vec()
+        solution
+            .topo_sort()
+            .into_iter()
+            .map(|pkg| pkg.to_string())
+            .collect_vec()
     );
 }
 

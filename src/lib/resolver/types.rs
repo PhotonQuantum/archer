@@ -276,13 +276,13 @@ impl Context {
         }
     }
 
-    // TODO deal with cycles & custom impl
+    // TODO custom impl
+    // This is actually SCC because we need to deal with loops
     pub fn topo_sort(&self) -> Vec<Arc<Package>> {
-        let mut g = Graph::from(self);
-        g.reverse();
-        let sorted = petgraph::algo::toposort(&g, None).unwrap();
-        sorted
-            .into_iter()
+        let g = Graph::from(self);
+        let sccs = petgraph::algo::kosaraju_scc(&g);
+        sccs.into_iter()
+            .flatten()
             .map(|node| g.node_weight(node).unwrap())
             .cloned()
             .collect()
