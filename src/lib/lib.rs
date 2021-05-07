@@ -3,7 +3,6 @@
 #![feature(bool_to_option)]
 #![feature(try_trait)]
 #![feature(never_type)]
-#![feature(map_into_keys_values)]
 #![feature(hash_drain_filter)]
 
 pub use utils::load_alpm;
