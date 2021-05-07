@@ -12,11 +12,12 @@
   + [x] dfs search (find dependency closure)
   + [x] graph output (via petgraph)
   + [x] skip policy (ignore packages existing in certain repo)
-  + [ ] topo sort
+  + [x] topo sort
   + [ ] support for makedepends
   + [x] batch query
   + [x] parallel query for aur
   + [ ] custom pkgbuild support
+  + [ ] plan builder
 - [ ] build environment setup
   + [ ] bare metal
   + [ ] bubblewrap
