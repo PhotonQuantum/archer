@@ -25,7 +25,13 @@ impl Repository for MergedRepository {
         self.repos
             .iter()
             .map(|repo| repo.find_package(pkg))
-            .find(|result| result.is_ok())
+            .find(|result| {
+                if let Ok(pkgs) = result {
+                    !pkgs.is_empty()
+                } else {
+                    true
+                }
+            })
             .unwrap_or_else(|| Ok(vec![]))
     }
 
