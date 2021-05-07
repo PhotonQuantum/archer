@@ -24,14 +24,6 @@ impl TreeResolver {
         }
     }
 
-    fn union_into_ctx(&self, ctx: Context, pkgs: Context) -> Result<Context> {
-        ctx.union(pkgs).ok_or_else(|| {
-            Error::DependencyError(DependencyError::ConflictDependency(String::from(
-                "can't be merged",
-            )))
-        })
-    }
-
     fn insert_into_ctx(
         &self,
         mut ctx: Context,
@@ -114,9 +106,9 @@ impl TreeResolver {
                 ); // no new dependency, solution found
 
                 let partial_solution =
-                    match self.union_into_ctx(partial_solution, candidates.clone()) {
-                        Ok(v) => v,
-                        Err(_) => continue, // not accepted, try the next set of candidates
+                    match partial_solution.union(candidates.clone()) {
+                        Some(v) => v,
+                        None => continue, // not accepted, try the next set of candidates
                     };
 
                 if solution_found {
