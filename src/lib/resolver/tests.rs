@@ -1,8 +1,7 @@
-use std::str::FromStr;
-use std::sync::Arc;
-
 use itertools::Itertools;
 use rstest::rstest;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::repository::custom::CustomRepository;
 use crate::repository::empty::EmptyRepository;

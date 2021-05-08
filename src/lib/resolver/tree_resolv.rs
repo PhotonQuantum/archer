@@ -140,7 +140,7 @@ impl TreeResolver {
                     Ok(v) => v,
                     Err(ctx) => {
                         let partial_solution = partial_solution.union(ctx).unwrap();
-                        return Ok(partial_solution)
+                        return Ok(partial_solution);
                     }
                 };
 
