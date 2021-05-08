@@ -82,7 +82,7 @@ impl TreeResolver {
             })?;
         let initial_pkgs =
             self.next_candidates(&initial_ctx, initial_ctx.clone(), depend_policy_fn)?;
-        if let Some(initial_pkgs) = initial_pkgs {
+        if let Ok(initial_pkgs) = initial_pkgs {
             stage_ctxs.push(initial_pkgs);
         } else {
             return Ok(initial_ctx);
@@ -136,10 +136,12 @@ impl TreeResolver {
                 } else {
                     next_candidates
                 }?;
-                let next_candidates = if let Some(v) = next_candidates {
-                    v
-                } else {
-                    return Ok(partial_solution);
+                let next_candidates = match next_candidates {
+                    Ok(v) => v,
+                    Err(ctx) => {
+                        let partial_solution = partial_solution.union(ctx).unwrap();
+                        return Ok(partial_solution)
+                    }
                 };
 
                 depth += 1;
@@ -158,7 +160,7 @@ impl TreeResolver {
         candidates: &Context,
         partial_solution: Context,
         depend_policy_fn: impl Fn(&Package) -> DependPolicy,
-    ) -> Result<Option<Box<dyn Iterator<Item = Context> + 'a>>> {
+    ) -> Result<std::result::Result<Box<dyn Iterator<Item = Context> + 'a>, Context>> {
         let mut base_ctx = candidates.clone();
 
         // get deps of all candidates and merge them
@@ -270,7 +272,7 @@ impl TreeResolver {
 
         // no new deps needed
         if map_dep_parents.is_empty() {
-            return Ok(None);
+            return Ok(Err(base_ctx));
         }
 
         let cloned_policy = self.policy.clone(); // clone for closure use
@@ -325,6 +327,6 @@ impl TreeResolver {
                         })
                     })
             });
-        Ok(Some(Box::new(next_candidates)))
+        Ok(Ok(Box::new(next_candidates)))
     }
 }
