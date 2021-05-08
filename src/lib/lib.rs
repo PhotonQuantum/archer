@@ -7,6 +7,10 @@
 
 pub use utils::load_alpm;
 
+#[cfg(test)]
+#[macro_use]
+mod tests;
+
 pub mod alpm;
 mod consts;
 mod error;
