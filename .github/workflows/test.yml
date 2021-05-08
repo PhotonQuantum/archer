@@ -56,7 +56,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         name: Setup Cargo Toolchain 🛎️
         with:
-          components: rustfmt, clippy
+          profile: minimal
           toolchain: nightly
           default: true
       - name: Populate Pacman Database️️ 🛎️
