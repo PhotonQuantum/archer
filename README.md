@@ -16,8 +16,10 @@
   + [x] support for makedepends
   + [x] batch query
   + [x] parallel query for aur
+  + [ ] correct aur package parsing (SRCINFO)
   + [ ] custom pkgbuild support
   + [ ] plan builder
+  + [ ] unittest
 - [ ] build environment setup
   + [ ] bare metal
   + [ ] bubblewrap
