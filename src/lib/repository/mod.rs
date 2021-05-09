@@ -11,6 +11,9 @@ pub mod empty;
 pub mod merged;
 pub mod pacman;
 
+#[cfg(test)]
+mod tests;
+
 pub trait Repository: Debug + Send + Sync {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>>;
     fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {

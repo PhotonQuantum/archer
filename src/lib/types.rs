@@ -10,6 +10,10 @@ use ranges::{Domain, GenericRange, Ranges};
 pub use raur::Package as AurPackage;
 
 use crate::error::Error;
+use crate::repository::Repository;
+use std::sync::Arc;
+
+pub type ArcRepo = Arc<dyn Repository>;
 
 macro_rules! option_owned {
     ($e: expr) => {

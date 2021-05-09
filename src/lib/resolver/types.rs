@@ -7,10 +7,7 @@ use enumflags2::{bitflags, BitFlags};
 use maplit::hashset;
 use petgraph::Graph;
 
-use crate::repository::Repository;
 use crate::types::*;
-
-type ArcRepo = Arc<dyn Repository>;
 
 // TODO remove mutex cuz find_package(s) doesn't require mut now
 #[derive(Clone)]
