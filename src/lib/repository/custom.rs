@@ -1,4 +1,4 @@
-use crate::repository::Repository;
+use crate::repository::{Repository, sort_pkgs_mut};
 use crate::types::*;
 
 #[derive(Debug, Clone)]
@@ -14,11 +14,13 @@ impl CustomRepository {
 
 impl Repository for CustomRepository {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
-        Ok(self
+        let mut result = self
             .packages
             .iter()
             .filter(|candidate| pkg.satisfied_by(candidate))
             .cloned()
-            .collect())
+            .collect();
+        sort_pkgs_mut(&mut result, pkg);
+        Ok(result)
     }
 }
