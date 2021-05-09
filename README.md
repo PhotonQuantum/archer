@@ -1,5 +1,7 @@
 # Archer - a repository builder for ArchLinux
 
+[![Test](https://github.com/PhotonQuantum/archer/actions/workflows/test.yml/badge.svg)](https://github.com/PhotonQuantum/archer/actions/workflows/test.yml)
+
 > This project is at a very early stage.
 
 ## Current Progress
@@ -18,8 +20,8 @@
   + [x] parallel query for aur
   + [ ] correct aur package parsing (SRCINFO)
   + [ ] custom pkgbuild support
-  + [ ] plan builder
-  + [ ] unittest
+  + [x] plan builder (naive)
+  + [x] unittest (partial)
 - [ ] build environment setup
   + [ ] bare metal
   + [ ] bubblewrap
