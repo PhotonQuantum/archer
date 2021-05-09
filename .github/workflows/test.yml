@@ -12,6 +12,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    container: archlinux:base-devel
     steps:
       - uses: actions/checkout@v2
         name: Checkout 🛎️
