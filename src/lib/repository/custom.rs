@@ -8,7 +8,7 @@ pub struct CustomRepository {
 
 impl CustomRepository {
     pub fn new(packages: Vec<Package>) -> Self {
-        CustomRepository { packages }
+        Self { packages }
     }
 }
 

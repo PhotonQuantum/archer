@@ -39,8 +39,7 @@ impl Repository for PacmanRemote {
             .unwrap()
             .syncdbs()
             .iter()
-            .map(|db| db.search([pkg.name.clone()].iter()).unwrap())
-            .flatten()
+            .flat_map(|db| db.search([pkg.name.clone()].iter()).unwrap())
             .map(Package::from)
             .filter(|candidate| pkg.satisfied_by(candidate))
             .collect();

@@ -51,7 +51,7 @@ impl Repository for MergedRepository {
                 .collect_vec();
             if !missed_pkgs.is_empty() {
                 let mut result = repo.find_packages(missed_pkgs.as_ref())?;
-                for (name, pkgs) in acc.iter_mut() {
+                for (name, pkgs) in &mut acc {
                     if let Some(new_pkgs) = result.remove(name) {
                         pkgs.extend(new_pkgs)
                     }

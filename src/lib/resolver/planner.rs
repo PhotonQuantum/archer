@@ -78,7 +78,7 @@ impl PlanBuilder {
     }
 
     pub fn add_package(&mut self, pkg: &Depend) -> Result<()> {
-        let mut pkg = self.global_repo.find_package(&pkg)?;
+        let mut pkg = self.global_repo.find_package(pkg)?;
         if let Some(pkg) = pkg.pop() {
             self.add_package_exact(pkg);
         }

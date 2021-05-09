@@ -17,7 +17,7 @@ pub struct TreeResolver {
 }
 
 impl TreeResolver {
-    pub fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
+    pub const fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
         TreeResolver {
             policy,
             allow_cyclic,
@@ -89,7 +89,7 @@ impl TreeResolver {
         }
         let mut partial_solutions = vec![initial_ctx];
 
-        let mut depth_try_count = 0u32;
+        let mut depth_try_count = 0_u32;
         let mut rewind = false;
         loop {
             if rewind || depth_try_count > 300 {
@@ -100,19 +100,18 @@ impl TreeResolver {
                     return Err(Error::DependencyError(DependencyError::ConflictDependency(
                         String::from("can't find solution"),
                     )));
-                } else {
-                    partial_solutions.pop().unwrap();
-                    drop(stage_ctxs.pop().unwrap());
-                    depth -= 1;
-                    println!("rewinding to {}", depth);
                 }
+                partial_solutions.pop().unwrap();
+                drop(stage_ctxs.pop().unwrap());
+                depth -= 1;
+                println!("rewinding to {}", depth);
             }
             let partial_solution = partial_solutions.get(depth).unwrap().clone();
             if let Some(candidates) = stage_ctxs.get_mut(depth).unwrap().next() {
                 let solution_found = partial_solution.is_superset(
                     candidates
                         .pkgs()
-                        .map(|i| i.as_ref())
+                        .map(AsRef::as_ref)
                         .collect_vec()
                         .as_slice(),
                 ); // no new dependency, solution found

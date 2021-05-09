@@ -68,7 +68,7 @@ fn demo_deps() -> Result<()> {
         solution
             .packages
             .values()
-            .map(|pkg| pkg.to_string())
+            .map(ToString::to_string)
             .join(", ")
     );
     let mut f = File::create("output.dot")?;

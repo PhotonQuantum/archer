@@ -134,15 +134,13 @@ impl Context {
     pub fn conflicts(&self, dep: &Depend) -> bool {
         self.conflicts
             .get(&*dep.name)
-            .map(|range| !range.intersect(&dep.version).is_empty())
-            .unwrap_or(false)
+            .map_or(false, |range| !range.intersect(&dep.version).is_empty())
     }
 
     pub fn satisfies(&self, dep: &Depend) -> bool {
         self.provides
             .get(&*dep.name)
-            .map(|range| !range.intersect(&dep.version).is_empty())
-            .unwrap_or(false)
+            .map_or(false, |range| !range.intersect(&dep.version).is_empty())
     }
 
     pub fn is_superset(&self, other: &[&Package]) -> bool {
@@ -201,8 +199,7 @@ impl Context {
     pub fn contains_exact(&self, pkg: &Package) -> bool {
         self.packages
             .get(pkg.name())
-            .map(|candidate| &**candidate == pkg)
-            .unwrap_or(false)
+            .map_or(false, |candidate| &**candidate == pkg)
     }
     pub fn is_compatible(&self, pkg: &Package) -> bool {
         if let Some(same_pkg_ver) = self
@@ -219,15 +216,17 @@ impl Context {
         let conflicts_conflict = pkg_provides.into_iter().any(|provide| {
             self.conflicts
                 .get(provide.name.as_str())
-                .map(|conflict| !conflict.intersect(&provide.version).is_empty())
-                .unwrap_or(false)
+                .map_or(false, |conflict| {
+                    !conflict.intersect(&provide.version).is_empty()
+                })
         });
 
         let provides_conflict = pkg.conflicts().iter().any(|conflict| {
             self.provides
                 .get(conflict.name.as_str())
-                .map(|provide| !provide.intersect(&conflict.version).is_empty())
-                .unwrap_or(false)
+                .map_or(false, |provide| {
+                    !provide.intersect(&conflict.version).is_empty()
+                })
         });
 
         !(conflicts_conflict || provides_conflict)
@@ -237,9 +236,7 @@ impl Context {
     }
     pub fn insert_mut(&mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) -> bool {
         // TODO unchecked insert
-        if !self.is_compatible(&*pkg) {
-            false
-        } else {
+        if self.is_compatible(&*pkg) {
             let name = pkg.name().to_string();
             if let Some(existing) = self.packages.get(&name) {
                 return existing.version() == pkg.version();
@@ -270,6 +267,8 @@ impl Context {
             }
 
             true
+        } else {
+            false
         }
     }
 

@@ -43,7 +43,7 @@ fn sort_pkgs_mut(pkgs: &mut Vec<Package>, preferred: &Depend) {
             {
                 Ordering::Less => Ordering::Greater,
                 Ordering::Greater => Ordering::Less,
-                ord => ord,
+                Ordering::Equal => Ordering::Equal,
             }
         }
     });

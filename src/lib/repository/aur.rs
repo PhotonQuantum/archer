@@ -58,8 +58,7 @@ impl Repository for AurRepo {
             .unwrap()
             .into_iter()
             .map(Package::from) // convert to owned
-            .map(|p| classify_package(p, pkgs)) // classify packages by requested package name
-            .flatten() // collect into map
+            .flat_map(|p| classify_package(p, pkgs)) // classify packages by requested package name
             .flatten() // filter None
             .into_group_map();
 

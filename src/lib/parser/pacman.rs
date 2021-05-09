@@ -86,7 +86,7 @@ impl Parser {
         Parser::with_file(PACMAN_CONF_PATH)
     }
 
-    pub fn with_str(content: impl ToString) -> Result<Self, ParseError> {
+    pub fn with_str(content: &impl ToString) -> Result<Self, ParseError> {
         let mut config = Ini::new();
         config
             .read(content.to_string())
