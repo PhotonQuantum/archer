@@ -1,19 +1,18 @@
+use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
+use itertools::Itertools;
 use rstest::rstest;
 
 use crate::repository::aur::AurRepo;
-use crate::repository::Repository;
-
 use crate::repository::cached::CachedRepository;
 use crate::repository::custom::CustomRepository;
 use crate::repository::merged::MergedRepository;
 use crate::repository::pacman::{PacmanLocal, PacmanRemote};
+use crate::repository::Repository;
 use crate::tests::*;
 use crate::types::*;
-use itertools::Itertools;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct DebugRepository {

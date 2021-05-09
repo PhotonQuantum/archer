@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub use alpm::Package as PacmanPackage;
 use alpm::{Dep, DepModVer};
@@ -11,7 +12,6 @@ pub use raur::Package as AurPackage;
 
 use crate::error::Error;
 use crate::repository::Repository;
-use std::sync::Arc;
 
 pub type ArcRepo = Arc<dyn Repository>;
 

@@ -65,7 +65,7 @@ pub fn test_pkg(
 macro_rules! dep {
     ($s: expr) => {
         Depend::from_str($s).unwrap()
-    }
+    };
 }
 
 #[macro_export]
