@@ -9,7 +9,6 @@ use petgraph::Graph;
 
 use crate::types::*;
 
-// TODO remove mutex cuz find_package(s) doesn't require mut now
 #[derive(Clone)]
 pub struct ResolvePolicy {
     pub from_repo: ArcRepo,

@@ -18,13 +18,12 @@ pub enum DependencyError {
     CyclicDependency,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("pacman error: {0}")]
     PacmanError(#[from] alpm::Error),
-    // TODO doesn't implement Clone
-    // #[error("aur error: {0}")]
-    // AurError(#[from] raur::Error),
+    #[error("aur error: {0}")]
+    AurError(#[from] raur::Error),
     #[error("parse error: {0}")]
     ParseError(#[from] ParseError),
     #[error("dependency error: {0}")]

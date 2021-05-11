@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use alpm::Alpm;
+use itertools::Itertools;
 
 use crate::alpm::GLOBAL_ALPM;
 use crate::repository::{sort_pkgs_mut, Repository};
@@ -32,16 +33,20 @@ impl Default for PacmanRemote {
 
 impl Repository for PacmanRemote {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
-        // TODO error handling
         let mut result = self
             .alpm
             .lock()
             .unwrap()
             .syncdbs()
             .iter()
-            .flat_map(|db| db.search([pkg.name.clone()].iter()).unwrap())
-            .map(Package::from)
-            .filter(|candidate| pkg.satisfied_by(candidate))
+            .map(|db| db.search([pkg.name.clone()].iter()))
+            .try_collect::<_, Vec<_>, _>()?
+            .into_iter()
+            .flat_map(|pkgs| {
+                pkgs.into_iter()
+                    .map(Package::from)
+                    .filter(|candidate| pkg.satisfied_by(candidate))
+            })
             .collect();
         sort_pkgs_mut(&mut result, pkg);
         Ok(result)

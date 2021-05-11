@@ -20,19 +20,16 @@ impl AurRepo {
 
 impl Repository for AurRepo {
     fn find_package(&self, pkg: &Depend) -> Result<Vec<Package>> {
-        // TODO error handling
         println!("aur searching for {}", pkg);
         let search_result = self
             .handler
-            .search(&pkg.name)
-            .unwrap_or_default()
+            .search(&pkg.name)?
             .into_iter()
             .map(|p| p.name)
             .collect_vec();
         let mut detailed_info = self
             .handler
-            .info(&search_result)
-            .unwrap()
+            .info(&search_result)?
             .into_iter()
             .map(Package::from)
             .filter(|candidate| pkg.satisfied_by(candidate))
@@ -42,20 +39,20 @@ impl Repository for AurRepo {
     }
 
     fn find_packages(&self, pkgs: &[Depend]) -> Result<HashMap<Depend, Vec<Package>>> {
-        // TODO error handling
         println!("aur searching for {}", pkgs.iter().join(", "));
         // let search_result: HashMap<String, Vec<Package>> = pkgs.iter().map(|pkgname|self.handler.search(pkgname));
         let search_result: Vec<_> = pkgs
             .into_par_iter()
-            .map(|dep| self.handler.search(&dep.name).unwrap_or_default()) // search candidates per package
+            .map(|dep| self.handler.search(&dep.name)) // search candidates per package Iter<Result<Vec<Package>>>
+            .collect::<std::result::Result<Vec<_>, _>>()?
+            .into_iter()
             .flatten()
             .map(|p| p.name)
             .collect();
 
         let mut detailed_info = self
             .handler
-            .info(&search_result) // acquire detailed package info
-            .unwrap()
+            .info(&search_result)? // acquire detailed package info
             .into_iter()
             .map(Package::from) // convert to owned
             .flat_map(|p| classify_package(p, pkgs)) // classify packages by requested package name
