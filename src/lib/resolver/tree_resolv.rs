@@ -18,7 +18,7 @@ pub struct TreeResolver {
 
 impl TreeResolver {
     pub const fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
-        TreeResolver {
+        Self {
             policy,
             allow_cyclic,
         }

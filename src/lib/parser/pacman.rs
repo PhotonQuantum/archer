@@ -125,7 +125,7 @@ impl Parser {
                                     .and_then(|siglevel| parse_siglevel(siglevel.split(' ')))
                             })
                             .unwrap_or(global_siglevel),
-                        server: kv.get("Server").and_then(|v| v.clone()),
+                        server: kv.get("Server").and_then(Clone::clone),
                     })
                 }
             })

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::{Bound, RangeBounds};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -29,7 +30,7 @@ pub struct Version(pub String);
 
 impl From<&alpm::Ver> for Version {
     fn from(ver: &alpm::Ver) -> Self {
-        Version(ver.to_string())
+        Self(ver.to_string())
     }
 }
 
@@ -77,25 +78,91 @@ impl Domain for Version {}
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct DependVersion(pub Ranges<Version>);
 
+const fn bound_of(bound: Bound<&Version>) -> Option<&Version> {
+    match bound {
+        Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        Bound::Unbounded => None,
+    }
+}
+
+impl Display for DependVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0.as_slice().len() > 1 {
+            write!(f, "multi_ranges") // archlinux doesn't support multi range constraint
+        } else if let Some(range) = self.0.as_slice().first() {
+            if range.is_full() {
+                write!(f, "")
+            } else if range.is_empty() {
+                write!(f, " ∅")
+            } else if range.is_singleton() {
+                write!(f, " = {}", bound_of(range.start_bound()).unwrap())
+            } else if !range.is_right_unbounded() && range.is_left_unbounded() {
+                if range.is_right_closed() {
+                    write!(f, " <= {}", bound_of(range.end_bound()).unwrap())
+                } else {
+                    write!(f, " < {}", bound_of(range.end_bound()).unwrap())
+                }
+            } else if !range.is_left_unbounded() && range.is_right_unbounded() {
+                if range.is_left_closed() {
+                    write!(f, " >= {}", bound_of(range.start_bound()).unwrap())
+                } else {
+                    write!(f, " > {}", bound_of(range.start_bound()).unwrap())
+                }
+            } else {
+                write!(f, "double_ended_range") // archlinux doesn't support double end constraint in one string
+            }
+        } else {
+            write!(f, ": ∅")
+        }
+    }
+}
+
 impl DependVersion {
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        !self.0.as_slice().iter().any(|range| !range.is_empty())
     }
 
-    pub fn intersect(&self, other: &DependVersion) -> DependVersion {
-        DependVersion(self.0.clone().intersect(other.0.clone()))
+    pub fn is_legal(&self) -> bool {
+        !(self.is_empty() || self.0.as_slice().len() > 1)
     }
 
-    pub fn union(&self, other: &DependVersion) -> DependVersion {
-        DependVersion(self.0.clone().union(other.0.clone()))
+    pub fn split(&self) -> Vec<Self> {
+        // TODO support <>
+        if self.is_legal() {
+            let range = self.0.as_slice().first().unwrap();
+            if !range.is_left_unbounded() && !range.is_right_unbounded() {
+                vec![
+                    Self(Ranges::from(GenericRange::new_with_bounds(
+                        range.start_bound().cloned(),
+                        Bound::Unbounded,
+                    ))),
+                    Self(Ranges::from(GenericRange::new_with_bounds(
+                        Bound::Unbounded,
+                        range.end_bound().cloned(),
+                    ))),
+                ]
+            } else {
+                vec![self.clone()]
+            }
+        } else {
+            vec![]
+        }
     }
 
-    pub fn contains(&self, other: &DependVersion) -> bool {
+    pub fn intersect(&self, other: &Self) -> Self {
+        Self(self.0.clone().intersect(other.0.clone()))
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        Self(self.0.clone().union(other.0.clone()))
+    }
+
+    pub fn contains(&self, other: &Self) -> bool {
         self.0.clone().intersect(other.0.clone()) == other.0
     }
 
-    pub fn complement(&self) -> DependVersion {
-        DependVersion(self.0.clone().invert())
+    pub fn complement(&self) -> Self {
+        Self(self.0.clone().invert())
     }
 
     pub fn satisfied_by(&self, target: &Version) -> bool {
@@ -105,7 +172,7 @@ impl DependVersion {
 
 impl<'a> From<alpm::DepModVer<'a>> for DependVersion {
     fn from(dep_ver: DepModVer<'a>) -> Self {
-        DependVersion(match dep_ver {
+        Self(match dep_ver {
             DepModVer::Any => Ranges::full(),
             DepModVer::Eq(ver) => Ranges::from(Version::from(ver)),
             DepModVer::Ge(ver) => Ranges::from(Version::from(ver)..),
@@ -130,12 +197,25 @@ impl Depend {
                 .iter()
                 .any(|provide| provide.name == self.name && self.version.contains(&provide.version))
     }
+    pub fn split_ver(&self) -> Vec<Self> {
+        self.version
+            .split()
+            .into_iter()
+            .map(|ver| Self {
+                name: self.name.clone(),
+                version: ver,
+            })
+            .collect()
+    }
 }
 
 impl Display for Depend {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // TODO into arch version format
-        write!(f, "{} {}", self.name, self.version.0)
+        match self.split_ver().as_slice() {
+            [v] => write!(f, "{} {}", self.name, v.version),
+            [v1, v2] => write!(f, "{} {} && {}", self.name, v1.version, v2.version),
+            _ => write!(f, "{} {}", self.name, self.version),
+        }
     }
 }
 
@@ -230,7 +310,7 @@ pub struct OwnedPacmanPackage {
 
 impl Default for OwnedPacmanPackage {
     fn default() -> Self {
-        OwnedPacmanPackage {
+        Self {
             name: Default::default(),
             should_ignore: Default::default(),
             filename: Default::default(),
@@ -277,7 +357,7 @@ impl Display for OwnedPacmanPackage {
 
 impl From<PacmanPackage<'_>> for OwnedPacmanPackage {
     fn from(pkg: PacmanPackage) -> Self {
-        OwnedPacmanPackage::from(&pkg)
+        Self::from(&pkg)
     }
 }
 
@@ -344,8 +424,8 @@ impl PartialOrd for Package {
     }
 }
 
-impl AsRef<Package> for Package {
-    fn as_ref(&self) -> &Package {
+impl AsRef<Self> for Package {
+    fn as_ref(&self) -> &Self {
         self
     }
 }
@@ -377,13 +457,13 @@ impl Hash for Package {
 
 impl From<PacmanPackage<'_>> for Package {
     fn from(pkg: PacmanPackage) -> Self {
-        Package::PacmanPackage(pkg.into())
+        Self::PacmanPackage(pkg.into())
     }
 }
 
 impl From<AurPackage> for Package {
     fn from(pkg: AurPackage) -> Self {
-        Package::AurPackage(pkg)
+        Self::AurPackage(pkg)
     }
 }
 

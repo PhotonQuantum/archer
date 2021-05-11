@@ -4,6 +4,7 @@
 #![feature(try_trait)]
 #![feature(never_type)]
 #![feature(hash_drain_filter)]
+#![feature(bound_cloned)]
 
 pub use utils::load_alpm;
 

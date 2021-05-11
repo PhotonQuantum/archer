@@ -29,7 +29,7 @@ macro_rules! assert_pkg {
 
 impl Display for PackageAssertion {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "?[{} {:?}]", self.name, self.version)
+        write!(f, "?[{}{}]", self.name, self.version)
     }
 }
 
