@@ -4,21 +4,11 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::repository::aur::AurRepo;
-use crate::repository::cached::CachedRepository;
-use crate::repository::merged::MergedRepository;
-use crate::repository::pacman::{PacmanLocal, PacmanRemote};
-use crate::repository::Repository;
-use crate::resolver::tree_resolv::TreeResolver;
-use crate::resolver::types::{always_depend, makedepend_if_aur, ResolvePolicy};
+use crate::error::Result;
+use crate::repository::*;
 use crate::types::*;
 
-#[derive(Clone, Eq, PartialEq, Hash)]
-pub enum PlanAction {
-    Install(Package),
-    Build(Package),
-    CopyToDest(Package),
-}
+use super::{tree_resolv::TreeResolver, types::*};
 
 impl Display for PlanAction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -73,6 +63,7 @@ impl Default for PlanBuilder {
 }
 
 impl PlanBuilder {
+    #[must_use]
     pub fn new() -> Self {
         Default::default()
     }

@@ -1,5 +1,8 @@
-pub mod planner;
-pub mod tree_resolv;
+pub use planner::PlanBuilder;
+pub use tree_resolv::TreeResolver;
+
+mod planner;
+mod tree_resolv;
 pub mod types;
 
 #[cfg(test)]

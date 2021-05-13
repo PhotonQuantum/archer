@@ -4,6 +4,7 @@ use itertools::Itertools;
 use raur::blocking::{Handle, Raur};
 use rayon::prelude::*;
 
+use crate::error::Result;
 use crate::repository::{classify_package, sort_pkgs_mut, Repository};
 use crate::types::*;
 

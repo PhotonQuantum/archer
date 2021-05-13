@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 
+use crate::error::Result;
 use crate::repository::Repository;
 use crate::types::*;
 

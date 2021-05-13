@@ -11,7 +11,6 @@ use alpm::{Dep, DepModVer};
 use ranges::{Domain, GenericRange, Ranges};
 pub use raur::Package as AurPackage;
 
-use crate::error::Error;
 use crate::repository::Repository;
 
 pub type ArcRepo = Arc<dyn Repository>;
@@ -21,8 +20,6 @@ macro_rules! option_owned {
         $e.map(ToOwned::to_owned)
     };
 }
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 // TODO figure out a way to handle `epoch` field. see https://wiki.archlinux.org/index.php/PKGBUILD#Version
 #[derive(Debug, Clone)]

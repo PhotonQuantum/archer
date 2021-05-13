@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use crate::error::Result;
 use crate::repository::Repository;
 use crate::types::*;
 

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use maplit::hashset;
 
+use crate::error::Result;
 use crate::error::{DependencyError, Error};
 use crate::types::*;
 
@@ -17,6 +18,7 @@ pub struct TreeResolver {
 }
 
 impl TreeResolver {
+    #[must_use]
     pub const fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
         Self {
             policy,

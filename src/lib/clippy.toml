@@ -1,0 +1,1 @@
+blacklisted-names = ["module-name-repetitions", "pub-enum-variant-names", "wildcard_imports"]

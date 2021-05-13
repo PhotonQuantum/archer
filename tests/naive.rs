@@ -4,16 +4,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use rstest::rstest;
 
-use archer_lib::repository::aur::AurRepo;
-use archer_lib::repository::cached::CachedRepository;
-use archer_lib::repository::empty::EmptyRepository;
-use archer_lib::repository::merged::MergedRepository;
-use archer_lib::repository::pacman::{PacmanLocal, PacmanRemote};
-use archer_lib::repository::Repository;
-use archer_lib::resolver::planner::PlanBuilder;
-use archer_lib::resolver::tree_resolv::TreeResolver;
-use archer_lib::resolver::types::{always_depend, ResolvePolicy};
-use archer_lib::types::*;
+use archer_lib::prelude::*;
 
 fn must_plan(pkg: &str) {
     println!("Planning {}", pkg);

@@ -2,14 +2,22 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+pub use aur::AurRepo;
+pub use cached::CachedRepository;
+pub use custom::CustomRepository;
+pub use empty::EmptyRepository;
+pub use merged::MergedRepository;
+pub use pacman::{PacmanLocal, PacmanRemote};
+
+use crate::error::Result;
 use crate::types::*;
 
-pub mod aur;
-pub mod cached;
-pub mod custom;
-pub mod empty;
-pub mod merged;
-pub mod pacman;
+mod aur;
+mod cached;
+mod custom;
+mod empty;
+mod merged;
+mod pacman;
 
 #[cfg(test)]
 mod tests;

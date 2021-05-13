@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::repository::{sort_pkgs_mut, Repository};
 use crate::types::*;
 

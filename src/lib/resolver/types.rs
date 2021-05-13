@@ -1,3 +1,5 @@
+#![allow(clippy::use_self)]
+
 use std::collections::hash_map::{Values, ValuesMut};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -7,7 +9,15 @@ use enumflags2::{bitflags, BitFlags};
 use maplit::hashset;
 use petgraph::Graph;
 
+use crate::error::Result;
 use crate::types::*;
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub enum PlanAction {
+    Install(Package),
+    Build(Package),
+    CopyToDest(Package),
+}
 
 #[derive(Clone)]
 pub struct ResolvePolicy {

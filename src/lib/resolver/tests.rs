@@ -4,9 +4,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use rstest::rstest;
 
-use crate::repository::custom::CustomRepository;
-use crate::repository::empty::EmptyRepository;
-use crate::repository::Repository;
+use crate::repository::*;
 use crate::resolver::tree_resolv::TreeResolver;
 use crate::resolver::types::{always_depend, ResolvePolicy};
 use crate::tests::*;

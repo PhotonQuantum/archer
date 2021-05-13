@@ -83,7 +83,7 @@ fn parse_siglevel<'a>(content: impl IntoIterator<Item = &'a str>) -> Option<SigL
 
 impl Parser {
     pub fn with_default() -> Result<Self, ParseError> {
-        Parser::with_file(PACMAN_CONF_PATH)
+        Self::with_file(PACMAN_CONF_PATH)
     }
 
     pub fn with_str(content: &impl ToString) -> Result<Self, ParseError> {

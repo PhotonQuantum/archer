@@ -5,14 +5,9 @@ use std::sync::{Arc, Mutex};
 use itertools::Itertools;
 use rstest::rstest;
 
-use crate::repository::aur::AurRepo;
-use crate::repository::cached::CachedRepository;
-use crate::repository::custom::CustomRepository;
-use crate::repository::merged::MergedRepository;
-use crate::repository::pacman::{PacmanLocal, PacmanRemote};
-use crate::repository::Repository;
+use crate::error::Result;
+use crate::repository::*;
 use crate::tests::*;
-use crate::types::*;
 
 #[derive(Debug, Clone)]
 pub struct DebugRepository {
@@ -49,7 +44,7 @@ impl Repository for DebugRepository {
 #[case(PacmanLocal::new(), "m4")]
 #[case(PacmanRemote::new(), "electron")]
 #[case(AurRepo::new(), "systemd-git")]
-#[case(CustomRepository::new(vec![pkg!("a-alt", "1.0.0", vec![], vec![], vec![], deps!("a")), pkg!("b"), pkg!("a")]), "a")]
+#[case(CustomRepository::new(vec ! [pkg ! ("a-alt", "1.0.0", vec ! [], vec ! [], vec ! [], deps ! ("a")), pkg ! ("b"), pkg ! ("a")]), "a")]
 fn must_search(#[case] repo: impl Repository, #[case] name: &str) {
     let dep = dep!(name);
     let results = repo
