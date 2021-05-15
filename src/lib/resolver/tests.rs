@@ -42,3 +42,36 @@ fn simple_deps(
         asrt.assert(&result.iter().map(|pkg| pkg.as_ref()).collect_vec())
     }
 }
+
+#[rstest]
+#[case(vec![pkg!("a", "1.0.0", deps!("c")), pkg!("b", "1.0.0", deps!("a")), pkg!("c", "1.0.0", deps!("b"))], "a",
+    vec![asrt!("a"), asrt!("b"), asrt!("c")])]
+#[case(vec![pkg!("a", "1.0.0", deps!("c")), pkg!("b", "1.0.0", deps!("a")), pkg!("c", "1.0.0", deps!("b"))], "c",
+    vec![asrt!("a"), asrt!("b"), asrt!("c")])]
+fn cyclic_deps(
+    #[case] pkgs: Vec<Package>,
+    #[case] target: &str,
+    #[case] asrts: Vec<PkgsAssertion>,
+) {
+    let repo = Arc::new(CustomRepository::new(pkgs));
+    let empty_repo = Arc::new(EmptyRepository::new());
+    let policy = ResolvePolicy::new(repo.clone(), empty_repo.clone(), empty_repo);
+    let resolver = TreeResolver::new(policy, false);
+
+    let pkg = repo
+        .find_package(&Depend::from_str(target).unwrap())
+        .unwrap()
+        .pop()
+        .unwrap();
+    let result = resolver
+        .resolve(&[pkg], always_depend)
+        .expect("can't find solution")
+        .topo_sort();
+    println!(
+        "{:?}",
+        result.iter().map(|pkg| pkg.to_string()).collect_vec()
+    );
+    for asrt in asrts {
+        asrt.assert(&result.iter().map(|pkg| pkg.as_ref()).collect_vec())
+    }
+}

@@ -196,8 +196,8 @@ impl PkgsAssertion {
 
 #[macro_export]
 macro_rules! asrt {
-    ($($s: literal)< *) => {
-        PkgsAssertion::AssertOrder(vec![$(assert_pkg!($s)),*])
+    ($s: literal < $($ss: literal)< *) => {
+        PkgsAssertion::AssertOrder(vec![assert_pkg!($s), $(assert_pkg!($ss)),*])
     };
     ($s: literal) => {
         PkgsAssertion::AssertExist(assert_pkg!($s))

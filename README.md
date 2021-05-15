@@ -11,22 +11,39 @@
 
 ## Todos
 - [ ] dependency resolving
-  + [x] dfs search (find dependency closure)
-  + [x] graph output (via petgraph)
+  + [ ] dfs search
+    * [x] basic impl
+    * [ ] nice error reporting
+  + [ ] graph output
+    * [x] use petgraph impl
+    * [ ] migrate to custom impl
   + [x] skip policy (ignore packages existing in certain repo)
-  + [x] topo sort
+  + [ ] handle cyclic deps
+  + [ ] toposort & SCC
+    * [x] basic impl
+    * [ ] complete impl
   + [x] support for makedepends
   + [x] batch query
   + [x] parallel query for aur
-  + [ ] correct aur package parsing (SRCINFO)
   + [ ] custom pkgbuild support
-  + [x] plan builder (naive)
-  + [x] unittest (partial)
+    * [ ] basic impl
+    * [ ] support .SRCINFO
+  + [ ] plan builder
+    * [x] basic impl
+    * [ ] complete impl
+  + [ ] unittest
+    * [ ] package
+    * [ ] repository
+    * [x] basic resolve
+    * [ ] cyclic deps
+    * [ ] plan builder
+    * [ ] parser
 - [ ] build environment setup
   + [ ] bare metal
   + [ ] bubblewrap
   + [ ] official container buildtools
 - [ ] build workflow
+  + [ ] split package
   + [ ] error handling
 - [ ] storage support
   + [ ] file
