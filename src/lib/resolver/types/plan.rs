@@ -18,7 +18,11 @@ impl Display for PlanAction {
             PlanAction::Install(pkg) => write!(f, "Install({})", pkg.to_string()),
             PlanAction::Build(pkg) => write!(f, "Build({})", pkg.to_string()),
             PlanAction::CopyToDest(pkg) => write!(f, "CopyToDest({})", pkg.to_string()),
-            PlanAction::InstallGroup(pkgs) => write!(f, "InstallGroup({})", pkgs.iter().map(|p|p.to_string()).join(", "))
+            PlanAction::InstallGroup(pkgs) => write!(
+                f,
+                "InstallGroup({})",
+                pkgs.iter().map(|p| p.to_string()).join(", ")
+            ),
         }
     }
 }

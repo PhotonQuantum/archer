@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::{Values, ValuesMut};
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -38,7 +38,11 @@ impl Context {
         self.packages.is_empty()
     }
 
-    pub fn add_edge(&mut self, i: &Arc<Package>, j: &Arc<Package>) -> Result<EdgeEffect<Arc<Package>>> {
+    pub fn add_edge(
+        &mut self,
+        i: &Arc<Package>,
+        j: &Arc<Package>,
+    ) -> Result<EdgeEffect<Arc<Package>>> {
         self.graph.insert(i, j)
     }
 
@@ -139,12 +143,21 @@ impl Context {
 
         !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<Package>, reasons: HashSet<Arc<Package>>) -> Option<(Self, Option<Vec<Arc<Package>>>)> {
-        self.insert_mut(pkg, reasons).map(|maybe_cycle| (self, maybe_cycle))
+    pub fn insert(
+        mut self,
+        pkg: Arc<Package>,
+        reasons: HashSet<Arc<Package>>,
+    ) -> Option<(Self, Option<Vec<Arc<Package>>>)> {
+        self.insert_mut(pkg, reasons)
+            .map(|maybe_cycle| (self, maybe_cycle))
     }
 
     // success(hascycle(cycle))
-    pub fn insert_mut(&mut self, pkg: Arc<Package>, reasons: HashSet<Arc<Package>>) -> Option<Option<Vec<Arc<Package>>>> {
+    pub fn insert_mut(
+        &mut self,
+        pkg: Arc<Package>,
+        reasons: HashSet<Arc<Package>>,
+    ) -> Option<Option<Vec<Arc<Package>>>> {
         // TODO unchecked insert
         if self.is_compatible(&*pkg) {
             let name = pkg.name().to_string();
@@ -157,7 +170,7 @@ impl Context {
             }
             self.packages.insert(name, pkg.clone());
             self.graph.add_node(pkg.clone());
-            let cycle = reasons.iter().fold(None, |acc, reason|{
+            let cycle = reasons.iter().fold(None, |acc, reason| {
                 let eff = self.graph.insert(&reason, &pkg).unwrap();
                 if acc.is_none() {
                     if let EdgeEffect::NewEdge(Some(cycle)) = eff {

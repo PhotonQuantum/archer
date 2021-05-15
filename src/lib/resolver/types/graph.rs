@@ -71,8 +71,13 @@ impl<T: Hash + Eq + Clone> SCCGraph<T> {
 
         Ok(match eff {
             BaseEdgeEffect::None => EdgeEffect::None,
-            BaseEdgeEffect::NewEdge(Some(cycles)) => EdgeEffect::NewEdge(Some(cycles.into_iter().map(|p|self.proj_rev.index(p).clone()).collect())),
-            BaseEdgeEffect::NewEdge(None) => EdgeEffect::NewEdge(None)
+            BaseEdgeEffect::NewEdge(Some(cycles)) => EdgeEffect::NewEdge(Some(
+                cycles
+                    .into_iter()
+                    .map(|p| self.proj_rev.index(p).clone())
+                    .collect(),
+            )),
+            BaseEdgeEffect::NewEdge(None) => EdgeEffect::NewEdge(None),
         })
     }
 
@@ -81,9 +86,10 @@ impl<T: Hash + Eq + Clone> SCCGraph<T> {
     }
 
     pub fn edges(&self) -> Vec<(&T, &T)> {
-        self.base.edges().map(|(i, j)|{
-            (self.proj_rev.index(i), self.proj_rev.index(j))
-        }).collect()
+        self.base
+            .edges()
+            .map(|(i, j)| (self.proj_rev.index(i), self.proj_rev.index(j)))
+            .collect()
     }
 
     pub fn strongly_connected_components(&self, reversed: bool) -> Vec<Vec<&T>> {
@@ -100,7 +106,11 @@ impl<T: Hash + Eq + Clone> SCCGraph<T> {
     }
 
     pub fn merge(&mut self, other: &Self) -> Result<()> {
-        let missing_vertices = other.proj_rev.difference(&self.proj_rev).cloned().collect_vec();
+        let missing_vertices = other
+            .proj_rev
+            .difference(&self.proj_rev)
+            .cloned()
+            .collect_vec();
         for v in missing_vertices {
             self.add_node(v.clone())
         }

@@ -44,7 +44,8 @@ pub fn always_deny_cyclic(_: &[&Package]) -> bool {
 }
 
 pub fn allow_if_pacman(pkgs: &[&Package]) -> bool {
-    pkgs.iter().all(|pkg|matches!(pkg, Package::PacmanPackage(_)))
+    pkgs.iter()
+        .all(|pkg| matches!(pkg, Package::PacmanPackage(_)))
 }
 
 impl ResolvePolicy {

@@ -126,7 +126,9 @@ impl PlanBuilder {
             {
                 // TODO avoid dup build
                 if pkgs.len() > 1 {
-                    plan.push(PlanAction::InstallGroup(pkgs.into_iter().map(|p|p.as_ref().clone()).collect()))
+                    plan.push(PlanAction::InstallGroup(
+                        pkgs.into_iter().map(|p| p.as_ref().clone()).collect(),
+                    ))
                 } else {
                     let pkg = pkgs.pop().unwrap();
                     if let Package::AurPackage(_) = pkg.as_ref() {
@@ -144,7 +146,9 @@ impl PlanBuilder {
                 .resolve(&*pacman_make_deps, always_depend, allow_if_pacman)?
                 .strongly_connected_components()
             {
-                plan.push(PlanAction::InstallGroup(pkgs.into_iter().map(|p|p.as_ref().clone()).collect()))
+                plan.push(PlanAction::InstallGroup(
+                    pkgs.into_iter().map(|p| p.as_ref().clone()).collect(),
+                ))
             }
 
             // need to build its aur dependencies

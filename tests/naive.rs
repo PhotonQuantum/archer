@@ -54,7 +54,7 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         solution
             .strongly_connected_components()
             .into_iter()
-            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg|pkg.to_string()).join(", ")))
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg| pkg.to_string()).join(", ")))
             .collect_vec()
     );
 }

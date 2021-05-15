@@ -38,7 +38,7 @@ fn simple_deps(
     println!(
         "{:?}",
         scc.iter()
-            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg|pkg.to_string()).join(", ")))
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg| pkg.to_string()).join(", ")))
             .collect_vec()
     );
     for asrt in asrts {
@@ -56,7 +56,6 @@ fn cyclic_deps(
     #[case] target: &str,
     #[case] asrts: Vec<PkgsAssertion>,
 ) {
-    println!("cyclic test");
     let repo = Arc::new(CustomRepository::new(pkgs));
     let empty_repo = Arc::new(EmptyRepository::new());
     let policy = ResolvePolicy::new(repo.clone(), empty_repo.clone(), empty_repo);
@@ -71,11 +70,10 @@ fn cyclic_deps(
         .resolve(&[pkg], always_depend, allow_if_pacman)
         .expect("can't find solution");
     let scc = result.strongly_connected_components();
-    println!("{:?}", scc.iter().map(|component|component.iter().map(|pkg|pkg.to_string()).collect_vec()).collect_vec());
     println!(
         "{:?}",
         scc.iter()
-            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg|pkg.to_string()).join(", ")))
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg| pkg.to_string()).join(", ")))
             .collect_vec()
     );
     for asrt in asrts {

@@ -19,7 +19,7 @@ pub struct TreeResolver {
 }
 
 enum Candidate<'a> {
-    Continue(Box<dyn Iterator<Item =CtxWithCycles> + 'a>),
+    Continue(Box<dyn Iterator<Item = CtxWithCycles> + 'a>),
     Finish((Box<Context>, Option<Vec<ArcPackage>>)),
 }
 
@@ -37,7 +37,14 @@ impl TreeResolver {
     ) -> Result<Option<CtxWithCycles>> {
         Ok(self
             .insert_into_ctx_mut(&mut ctx, pkg, reason)?
-            .map(|maybe_cycle| (ctx, maybe_cycle.map(|component|vec![component]).unwrap_or_default())))
+            .map(|maybe_cycle| {
+                (
+                    ctx,
+                    maybe_cycle
+                        .map(|component| vec![component])
+                        .unwrap_or_default(),
+                )
+            }))
     }
 
     fn insert_into_ctx_mut(
@@ -62,7 +69,7 @@ impl TreeResolver {
         depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy,
         cyclic_policy_fn: impl Fn(&[&Package]) -> bool + Copy,
     ) -> Result<Context> {
-        let mut stage_ctxs: Vec<Box<dyn Iterator<Item =CtxWithCycles>>> = vec![];
+        let mut stage_ctxs: Vec<Box<dyn Iterator<Item = CtxWithCycles>>> = vec![];
         let mut depth = 0;
 
         // push initial set
@@ -117,7 +124,11 @@ impl TreeResolver {
                 if !maybe_cycle.is_empty() {
                     println!("cycle detected, question");
                 }
-                if !maybe_cycle.is_empty() && maybe_cycle.into_iter().all(|cycle|!cyclic_policy_fn(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())){
+                if !maybe_cycle.is_empty()
+                    && maybe_cycle.into_iter().all(|cycle| {
+                        !cyclic_policy_fn(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())
+                    })
+                {
                     // TODO error report
                     // return Err(Error::DependencyError(DependencyError::CyclicDependency(cycle)))
                     println!("cycle detected, reject");
@@ -155,7 +166,9 @@ impl TreeResolver {
                     Candidate::Continue(v) => v,
                     Candidate::Finish((ctx, maybe_cycle)) => {
                         if let Some(cycle) = maybe_cycle {
-                            if !cyclic_policy_fn(&cycle.iter().map(|pkg|pkg.as_ref()).collect_vec()) {
+                            if !cyclic_policy_fn(
+                                &cycle.iter().map(|pkg| pkg.as_ref()).collect_vec(),
+                            ) {
                                 continue;
                             }
                         }
@@ -342,8 +355,15 @@ impl TreeResolver {
             .into_iter()
             .multi_cartesian_product()
             .filter_map(move |pkgs| {
-                pkgs.into_iter()
-                    .fold(Some((base_ctx.clone(), maybe_cycle.clone().map(|cycle|vec![cycle]).unwrap_or_default())), |acc, (dep, pkg)| {
+                pkgs.into_iter().fold(
+                    Some((
+                        base_ctx.clone(),
+                        maybe_cycle
+                            .clone()
+                            .map(|cycle| vec![cycle])
+                            .unwrap_or_default(),
+                    )),
+                    |acc, (dep, pkg)| {
                         acc.and_then(|(ctx, mut maybe_cycle)| {
                             ctx.insert(
                                 pkg,
@@ -357,10 +377,11 @@ impl TreeResolver {
                                 (ctx, maybe_cycle)
                             })
                         })
-                    })
+                    },
+                )
             });
         Ok(Candidate::Continue(
-            Box::new(next_candidates) as Box<dyn Iterator<Item=CtxWithCycles> + 'a>
+            Box::new(next_candidates) as Box<dyn Iterator<Item = CtxWithCycles> + 'a>
         ))
     }
 }
