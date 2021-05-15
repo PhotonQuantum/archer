@@ -14,14 +14,15 @@
   + [ ] dfs search
     * [x] basic impl
     * [ ] nice error reporting
-  + [ ] graph output
+  + [x] graph output
     * [x] use petgraph impl
-    * [ ] migrate to custom impl
+    * [x] migrate to custom impl
+    * [ ] custom dot output
   + [x] skip policy (ignore packages existing in certain repo)
-  + [ ] handle cyclic deps
-  + [ ] toposort & SCC
+  + [x] handle cyclic deps
+  + [x] toposort & SCC
     * [x] basic impl
-    * [ ] complete impl
+    * [x] complete impl
   + [x] support for makedepends
   + [x] batch query
   + [x] parallel query for aur
@@ -33,7 +34,7 @@
     * [ ] complete impl
   + [ ] unittest
     * [ ] package
-    * [ ] repository
+    * [x] repository
     * [x] basic resolve
     * [ ] cyclic deps
     * [ ] plan builder

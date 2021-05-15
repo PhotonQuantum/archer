@@ -1,4 +1,7 @@
+use online_scc_graph::Error as SCCGraphError;
 use thiserror::Error;
+
+use crate::types::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -14,8 +17,16 @@ pub enum DependencyError {
     MissingDependency(String),
     #[error("conflict dependency - {0}")]
     ConflictDependency(String),
-    #[error("cyclic dependency")]
-    CyclicDependency,
+    #[error("cyclic dependency - {0:?}")]
+    CyclicDependency(Vec<ArcPackage>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Error)]
+pub enum GraphError {
+    #[error("internal scc graph error - {0}")]
+    SCCGraphError(#[from] SCCGraphError),
+    #[error("invalid node")]
+    InvalidNode,
 }
 
 #[derive(Debug, Error)]
@@ -30,4 +41,6 @@ pub enum Error {
     DependencyError(#[from] DependencyError),
     #[error("max recursion depth exceeded")]
     RecursionError,
+    #[error("internal graph error: {0}")]
+    GraphError(#[from] GraphError),
 }

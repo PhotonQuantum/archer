@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -9,16 +8,6 @@ use crate::repository::*;
 use crate::types::*;
 
 use super::{tree_resolv::TreeResolver, types::*};
-
-impl Display for PlanAction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PlanAction::Install(pkg) => write!(f, "Install({})", pkg.to_string()),
-            PlanAction::Build(pkg) => write!(f, "Build({})", pkg.to_string()),
-            PlanAction::CopyToDest(pkg) => write!(f, "CopyToDest({})", pkg.to_string()),
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct PlanBuilder {
@@ -47,9 +36,9 @@ impl Default for PlanBuilder {
         let global_policy =
             ResolvePolicy::new(global_repo.clone(), local_repo.clone(), local_repo.clone());
 
-        let aur_resolver = TreeResolver::new(aur_policy, false);
-        let pacman_resolver = TreeResolver::new(remote_policy, true);
-        let global_resolver = TreeResolver::new(global_policy, false);
+        let aur_resolver = TreeResolver::new(aur_policy);
+        let pacman_resolver = TreeResolver::new(remote_policy);
+        let global_resolver = TreeResolver::new(global_policy);
         Self {
             pkgs: vec![],
             local_repo,
@@ -130,28 +119,32 @@ impl PlanBuilder {
             }
 
             // build & install aur make dependencies
-            for pkg in self
+            for mut pkgs in self
                 .global_resolver
-                .resolve(&*aur_make_deps, makedepend_if_aur)?
-                .topo_sort()
+                .resolve(&*aur_make_deps, makedepend_if_aur, allow_if_pacman)?
+                .strongly_connected_components()
             {
-                let pkg = pkg.as_ref();
                 // TODO avoid dup build
-                if let Package::AurPackage(_) = pkg {
-                    plan.push(PlanAction::Build(pkg.as_ref().clone()));
+                if pkgs.len() > 1 {
+                    plan.push(PlanAction::InstallGroup(pkgs.into_iter().map(|p|p.as_ref().clone()).collect()))
+                } else {
+                    let pkg = pkgs.pop().unwrap();
+                    if let Package::AurPackage(_) = pkg.as_ref() {
+                        plan.push(PlanAction::Build(pkg.as_ref().clone()));
+                    }
+                    plan.push(PlanAction::Install(pkg.as_ref().clone()))
                 }
-                plan.push(PlanAction::Install(pkg.as_ref().clone()))
             }
 
             // install pacman make dependencies
             // Note
             // pacman makedeps are installed behind aur deps to avoid being uninstalled later by deps of aur makedeps
-            for pkg in self
+            for pkgs in self
                 .pacman_resolver
-                .resolve(&*pacman_make_deps, always_depend)?
-                .topo_sort()
+                .resolve(&*pacman_make_deps, always_depend, allow_if_pacman)?
+                .strongly_connected_components()
             {
-                plan.push(PlanAction::Install(pkg.as_ref().clone()))
+                plan.push(PlanAction::InstallGroup(pkgs.into_iter().map(|p|p.as_ref().clone()).collect()))
             }
 
             // need to build its aur dependencies

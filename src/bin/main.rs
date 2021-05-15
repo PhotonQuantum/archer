@@ -45,21 +45,21 @@ fn demo_deps() -> Result<()> {
         // Arc::new(EmptyRepository::new()),
         Arc::new(CachedRepository::new(local_repo)),
     );
-    let resolver = TreeResolver::new(policy, false);
+    let resolver = TreeResolver::new(policy);
     let initial_package = remote_repo
         .find_package(&Depend::from_str("electron").unwrap())?
         .iter()
         .find(|p| p.name() == "electron")
         .unwrap()
         .clone();
-    let solution = resolver.resolve(&[initial_package], always_depend)?;
+    let solution = resolver.resolve(&[initial_package], always_depend, always_deny_cyclic)?;
     println!(
         "{} packages: \n{:#?}",
         solution.packages.len(),
         solution
-            .packages
-            .values()
-            .map(ToString::to_string)
+            .strongly_connected_components()
+            .into_iter()
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg|pkg.to_string()).join(", ")))
             .join(", ")
     );
     let mut f = File::create("output.dot")?;

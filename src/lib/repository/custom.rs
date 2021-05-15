@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::repository::{sort_pkgs_mut, Repository};
+use crate::repository::{Repository, sort_pkgs_mut};
 use crate::types::*;
 
 #[derive(Debug, Clone)]

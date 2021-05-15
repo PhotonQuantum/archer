@@ -1,5 +1,6 @@
-use super::*;
 use std::fmt::{Display, Formatter};
+
+use super::*;
 
 macro_rules! option_owned {
     ($e: expr) => {

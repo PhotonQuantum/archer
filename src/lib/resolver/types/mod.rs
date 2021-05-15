@@ -1,9 +1,12 @@
 #![allow(clippy::use_self)]
 
-mod plan;
-mod resolve;
-mod context;
-
+pub use context::*;
 pub use plan::*;
 pub use resolve::*;
-pub use context::*;
+pub use graph::*;
+
+mod context;
+mod graph;
+mod plan;
+mod resolve;
+

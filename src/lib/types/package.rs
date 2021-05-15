@@ -1,9 +1,10 @@
-use super::*;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::borrow::Cow;
 use std::str::FromStr;
+
+use super::*;
 
 #[derive(Debug, Clone)]
 pub enum Package {

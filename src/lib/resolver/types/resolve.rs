@@ -1,8 +1,10 @@
-use crate::types::*;
-use crate::error::Result;
-use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
 use enumflags2::{bitflags, BitFlags};
+
+use crate::error::Result;
+use crate::types::*;
 
 #[derive(Clone)]
 pub struct ResolvePolicy {
@@ -31,6 +33,18 @@ pub fn makedepend_if_aur(pkg: &Package) -> DependPolicy {
         Package::PacmanPackage(_) => BitFlags::from(DependChoice::Depends),
         Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
     }
+}
+
+pub fn always_allow_cyclic(_: &[&Package]) -> bool {
+    true
+}
+
+pub fn always_deny_cyclic(_: &[&Package]) -> bool {
+    false
+}
+
+pub fn allow_if_pacman(pkgs: &[&Package]) -> bool {
+    pkgs.iter().all(|pkg|matches!(pkg, Package::PacmanPackage(_)))
 }
 
 impl ResolvePolicy {

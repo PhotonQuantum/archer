@@ -11,38 +11,41 @@ use crate::types::*;
 
 use super::types::*;
 
+type CtxWithCycles = (Context, Vec<Vec<ArcPackage>>);
+
 #[derive(Clone)]
 pub struct TreeResolver {
     policy: ResolvePolicy,
-    allow_cyclic: bool,
+}
+
+enum Candidate<'a> {
+    Continue(Box<dyn Iterator<Item =CtxWithCycles> + 'a>),
+    Finish((Box<Context>, Option<Vec<ArcPackage>>)),
 }
 
 impl TreeResolver {
     #[must_use]
-    pub const fn new(policy: ResolvePolicy, allow_cyclic: bool) -> Self {
-        Self {
-            policy,
-            allow_cyclic,
-        }
+    pub const fn new(policy: ResolvePolicy) -> Self {
+        Self { policy }
     }
 
     fn insert_into_ctx(
         &self,
         mut ctx: Context,
-        pkg: Arc<Package>,
-        reason: HashSet<Arc<Package>>,
-    ) -> Result<Option<Context>> {
+        pkg: ArcPackage,
+        reason: HashSet<ArcPackage>,
+    ) -> Result<Option<CtxWithCycles>> {
         Ok(self
             .insert_into_ctx_mut(&mut ctx, pkg, reason)?
-            .then(|| ctx))
+            .map(|maybe_cycle| (ctx, maybe_cycle.map(|component|vec![component]).unwrap_or_default())))
     }
 
     fn insert_into_ctx_mut(
         &self,
         ctx: &mut Context,
-        pkg: Arc<Package>,
-        reason: HashSet<Arc<Package>>,
-    ) -> Result<bool> {
+        pkg: ArcPackage,
+        reason: HashSet<ArcPackage>,
+    ) -> Result<Option<Option<Vec<ArcPackage>>>> {
         if self.policy.is_mortal_blade(&*pkg)? {
             Err(Error::DependencyError(DependencyError::ConflictDependency(
                 String::from("conflict with immortal package"),
@@ -57,8 +60,9 @@ impl TreeResolver {
         &self,
         pkgs: &[Package],
         depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy,
+        cyclic_policy_fn: impl Fn(&[&Package]) -> bool + Copy,
     ) -> Result<Context> {
-        let mut stage_ctxs: Vec<Box<dyn Iterator<Item = Context>>> = vec![];
+        let mut stage_ctxs: Vec<Box<dyn Iterator<Item =CtxWithCycles>>> = vec![];
         let mut depth = 0;
 
         // push initial set
@@ -76,7 +80,7 @@ impl TreeResolver {
                 let name = x.to_string();
                 let x = Arc::new(x);
                 acc.and_then(|ctx| {
-                    let ctx = self.insert_into_ctx(ctx, x.clone(), hashset!())?.ok_or(
+                    let (ctx, _) = self.insert_into_ctx(ctx, x.clone(), hashset!())?.ok_or(
                         Error::DependencyError(DependencyError::ConflictDependency(name)),
                     )?;
                     Ok(ctx)
@@ -84,7 +88,7 @@ impl TreeResolver {
             })?;
         let initial_pkgs =
             self.next_candidates(&initial_ctx, initial_ctx.clone(), depend_policy_fn)?;
-        if let Ok(initial_pkgs) = initial_pkgs {
+        if let Candidate::Continue(initial_pkgs) = initial_pkgs {
             stage_ctxs.push(initial_pkgs);
         } else {
             return Ok(initial_ctx);
@@ -109,7 +113,17 @@ impl TreeResolver {
                 println!("rewinding to {}", depth);
             }
             let partial_solution = partial_solutions.get(depth).unwrap().clone();
-            if let Some(candidates) = stage_ctxs.get_mut(depth).unwrap().next() {
+            if let Some((candidates, maybe_cycle)) = stage_ctxs.get_mut(depth).unwrap().next() {
+                if !maybe_cycle.is_empty() {
+                    println!("cycle detected, question");
+                }
+                if !maybe_cycle.is_empty() && maybe_cycle.into_iter().all(|cycle|!cyclic_policy_fn(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())){
+                    // TODO error report
+                    // return Err(Error::DependencyError(DependencyError::CyclicDependency(cycle)))
+                    println!("cycle detected, reject");
+                    continue; // cycle detected, try the next set of candidates
+                }
+
                 let solution_found = partial_solution.is_superset(
                     candidates
                         .pkgs()
@@ -138,9 +152,14 @@ impl TreeResolver {
                     next_candidates
                 }?;
                 let next_candidates = match next_candidates {
-                    Ok(v) => v,
-                    Err(ctx) => {
-                        let partial_solution = partial_solution.union(ctx).unwrap();
+                    Candidate::Continue(v) => v,
+                    Candidate::Finish((ctx, maybe_cycle)) => {
+                        if let Some(cycle) = maybe_cycle {
+                            if !cyclic_policy_fn(&cycle.iter().map(|pkg|pkg.as_ref()).collect_vec()) {
+                                continue;
+                            }
+                        }
+                        let partial_solution = partial_solution.union(*ctx).unwrap();
                         return Ok(partial_solution);
                     }
                 };
@@ -161,7 +180,7 @@ impl TreeResolver {
         candidates: &Context,
         partial_solution: Context,
         depend_policy_fn: impl Fn(&Package) -> DependPolicy,
-    ) -> Result<std::result::Result<Box<dyn Iterator<Item = Context> + 'a>, Context>> {
+    ) -> Result<Candidate<'a>> {
         let mut base_ctx = candidates.clone();
 
         // get deps of all candidates and merge them
@@ -170,11 +189,11 @@ impl TreeResolver {
         // e.g. candidates: A==1.0, B, C
         // B depends on A(any) and C depends on A > 2.0
         // This should resolves to A==1.0, B, A==3.0 -> C, but now it resolves to A==1.0, A==3.0 -> (B, C)
-        let mut map_dep_parents: HashMap<Depend, Vec<Arc<Package>>> = candidates
+        let mut map_dep_parents: HashMap<Depend, Vec<ArcPackage>> = candidates
             .pkgs()
             .fold(
                 HashMap::new(),
-                |mut acc: HashMap<String, (Depend, Vec<Arc<Package>>)>, x| {
+                |mut acc: HashMap<String, (Depend, Vec<ArcPackage>)>, x| {
                     let depend_policy = depend_policy_fn(x.as_ref());
                     if depend_policy.contains(DependChoice::Depends) {
                         x.depends()
@@ -218,6 +237,7 @@ impl TreeResolver {
                 acc
             });
 
+        let mut maybe_cycle = None;
         // exclude already satisfied deps
         map_dep_parents
             .drain_filter(|dep, requesting_pkgs| {
@@ -229,10 +249,12 @@ impl TreeResolver {
                         .filter(|pkg| dep.satisfied_by(pkg))
                         .for_each(|existing_pkg| {
                             // need to update the install reason for existing package
-                            base_ctx.append_reasons(
-                                existing_pkg.clone(),
-                                requesting_pkgs.iter().cloned().collect(),
-                            );
+                            for pkg in requesting_pkgs.iter().cloned() {
+                                let effect = base_ctx.add_edge(&pkg, existing_pkg).unwrap();
+                                if let EdgeEffect::NewEdge(Some(cycle)) = effect {
+                                    maybe_cycle = Some(cycle);
+                                };
+                            }
                         });
                 }
                 satisfied
@@ -261,10 +283,12 @@ impl TreeResolver {
                         .filter(|pkg| dep.satisfied_by(pkg))
                         .for_each(|existing_pkg| {
                             // need to update the install reason for existing package
-                            base_ctx.append_reasons(
-                                existing_pkg.clone(),
-                                requesting_pkgs.iter().cloned().collect(),
-                            );
+                            for pkg in requesting_pkgs.iter().cloned() {
+                                let effect = base_ctx.add_edge(&pkg, existing_pkg).unwrap();
+                                if let EdgeEffect::NewEdge(Some(cycle)) = effect {
+                                    maybe_cycle = Some(cycle);
+                                };
+                            }
                         });
                 }
                 satisfied
@@ -273,7 +297,7 @@ impl TreeResolver {
 
         // no new deps needed
         if map_dep_parents.is_empty() {
-            return Ok(Err(base_ctx));
+            return Ok(Candidate::Finish((Box::new(base_ctx), maybe_cycle)));
         }
 
         let cloned_policy = self.policy.clone(); // clone for closure use
@@ -319,15 +343,24 @@ impl TreeResolver {
             .multi_cartesian_product()
             .filter_map(move |pkgs| {
                 pkgs.into_iter()
-                    .fold(Some(base_ctx.clone()), |acc, (dep, pkg)| {
-                        acc.and_then(|acc| {
-                            acc.insert(
+                    .fold(Some((base_ctx.clone(), maybe_cycle.clone().map(|cycle|vec![cycle]).unwrap_or_default())), |acc, (dep, pkg)| {
+                        acc.and_then(|(ctx, mut maybe_cycle)| {
+                            ctx.insert(
                                 pkg,
                                 map_dep_parents.get(&dep).unwrap().iter().cloned().collect(),
                             )
+                            .map(|(ctx, maybe_cycle_new)| {
+                                if let Some(cycle) = maybe_cycle_new {
+                                    println!("cycle detected");
+                                    maybe_cycle.push(cycle);
+                                }
+                                (ctx, maybe_cycle)
+                            })
                         })
                     })
             });
-        Ok(Ok(Box::new(next_candidates)))
+        Ok(Candidate::Continue(
+            Box::new(next_candidates) as Box<dyn Iterator<Item=CtxWithCycles> + 'a>
+        ))
     }
 }

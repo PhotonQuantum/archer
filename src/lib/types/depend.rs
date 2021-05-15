@@ -1,8 +1,10 @@
-use super::*;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use ranges::{GenericRange, Ranges};
+
 use alpm::Dep;
+use ranges::{GenericRange, Ranges};
+
+use super::*;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Depend {

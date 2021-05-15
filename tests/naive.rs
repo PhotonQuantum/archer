@@ -37,7 +37,7 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         },
         Arc::new(CachedRepository::new(local_repo)),
     );
-    let resolver = TreeResolver::new(policy, false);
+    let resolver = TreeResolver::new(policy);
     let initial_package = remote_repo
         .find_package(&Depend::from_str(pkg).unwrap())
         .expect("can't search package")
@@ -46,15 +46,15 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         .unwrap()
         .clone();
     let solution = resolver
-        .resolve(&[initial_package], always_depend)
+        .resolve(&[initial_package], always_depend, allow_if_pacman)
         .expect("can't resolve");
     assert!(!solution.packages.is_empty(), "solution is empty");
     println!(
         "Result: {:#?}",
         solution
-            .topo_sort()
+            .strongly_connected_components()
             .into_iter()
-            .map(|pkg| pkg.to_string())
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg|pkg.to_string()).join(", ")))
             .collect_vec()
     );
 }

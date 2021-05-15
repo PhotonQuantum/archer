@@ -1,15 +1,18 @@
-use crate::types::*;
-use maplit::hashset;
-use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::hash::{Hash, Hasher};
 use std::collections::hash_map::{Values, ValuesMut};
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+
+use petgraph::Graph;
+
+use crate::error::Result;
+use crate::resolver::types::graph::{EdgeEffect, SCCGraph};
+use crate::types::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct Context {
     pub packages: HashMap<String, Arc<Package>>,
-    pub reasons: HashMap<Arc<Package>, HashSet<Arc<Package>>>,
+    pub graph: SCCGraph<Arc<Package>>,
     pub conflicts: HashMap<String, Arc<DependVersion>>,
     pub provides: HashMap<String, Arc<DependVersion>>,
 }
@@ -35,22 +38,8 @@ impl Context {
         self.packages.is_empty()
     }
 
-    pub fn append_reason(&mut self, pkg: Arc<Package>, reason: Arc<Package>) {
-        self.reasons
-            .entry(pkg)
-            .and_modify(|reasons| {
-                reasons.insert(reason.clone());
-            })
-            .or_insert(hashset!(reason));
-    }
-
-    pub fn append_reasons(&mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) {
-        self.reasons
-            .entry(pkg)
-            .and_modify(|reasons| {
-                reasons.extend(reason.clone());
-            })
-            .or_insert(reason);
+    pub fn add_edge(&mut self, i: &Arc<Package>, j: &Arc<Package>) -> Result<EdgeEffect<Arc<Package>>> {
+        self.graph.insert(i, j)
     }
 
     pub fn pkgs(&self) -> Values<String, Arc<Package>> {
@@ -92,14 +81,8 @@ impl Context {
             }
             self.packages.insert(k, v2);
         }
-        for (k, v) in other.reasons {
-            self.reasons
-                .entry(k)
-                .and_modify(|reason| {
-                    reason.extend(v.clone());
-                })
-                .or_insert(v); // borrow checker...
-        }
+
+        self.graph.merge(&other.graph).unwrap();
 
         for (k, v2) in other.provides {
             self.provides
@@ -116,12 +99,7 @@ impl Context {
         Some(self)
     }
     pub fn new() -> Self {
-        Self {
-            packages: Default::default(),
-            reasons: Default::default(),
-            conflicts: Default::default(),
-            provides: Default::default(),
-        }
+        Default::default()
     }
     pub fn get(&self, name: &str) -> Option<&Package> {
         self.packages.get(name).map(|pkg| &**pkg)
@@ -161,18 +139,39 @@ impl Context {
 
         !(conflicts_conflict || provides_conflict)
     }
-    pub fn insert(mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) -> Option<Self> {
-        self.insert_mut(pkg, reason).then(|| self)
+    pub fn insert(mut self, pkg: Arc<Package>, reasons: HashSet<Arc<Package>>) -> Option<(Self, Option<Vec<Arc<Package>>>)> {
+        self.insert_mut(pkg, reasons).map(|maybe_cycle| (self, maybe_cycle))
     }
-    pub fn insert_mut(&mut self, pkg: Arc<Package>, reason: HashSet<Arc<Package>>) -> bool {
+
+    // success(hascycle(cycle))
+    pub fn insert_mut(&mut self, pkg: Arc<Package>, reasons: HashSet<Arc<Package>>) -> Option<Option<Vec<Arc<Package>>>> {
         // TODO unchecked insert
         if self.is_compatible(&*pkg) {
             let name = pkg.name().to_string();
             if let Some(existing) = self.packages.get(&name) {
-                return existing.version() == pkg.version();
+                return if existing.version() == pkg.version() {
+                    Some(None)
+                } else {
+                    None
+                };
             }
             self.packages.insert(name, pkg.clone());
-            self.reasons.insert(pkg.clone(), reason);
+            self.graph.add_node(pkg.clone());
+            let cycle = reasons.iter().fold(None, |acc, reason|{
+                let eff = self.graph.insert(&reason, &pkg).unwrap();
+                if acc.is_none() {
+                    if let EdgeEffect::NewEdge(Some(cycle)) = eff {
+                        Some(cycle)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            });
+            for reason in reasons {
+                self.graph.insert(&reason, &pkg).unwrap();
+            }
 
             let mut provides = pkg.provides().into_owned();
             provides.push(Depend::from(&*pkg));
@@ -196,22 +195,16 @@ impl Context {
                     .insert(conflict.name, Arc::new(conflict_version));
             }
 
-            true
+            Some(cycle)
         } else {
-            false
+            None
         }
     }
 
     // TODO custom impl
     // This is actually SCC because we need to deal with loops
-    pub fn topo_sort(&self) -> Vec<Arc<Package>> {
-        let g = Graph::from(self);
-        let sccs = petgraph::algo::kosaraju_scc(&g);
-        sccs.into_iter()
-            .flatten()
-            .map(|node| g.node_weight(node).unwrap())
-            .cloned()
-            .collect()
+    pub fn strongly_connected_components(&self) -> Vec<Vec<&Arc<Package>>> {
+        self.graph.strongly_connected_components(true)
     }
 }
 
@@ -220,16 +213,16 @@ impl From<&Context> for Graph<Arc<Package>, String> {
         let mut g_ = Graph::new();
         let mut map_pkg_idx = HashMap::new();
 
-        g.reasons.keys().for_each(|pkg| {
-            map_pkg_idx.insert(pkg.clone(), g_.add_node(pkg.clone()));
-        });
-        g.reasons.iter().for_each(|(pkg, reasons)| {
-            let pkg_idx = map_pkg_idx.get(&*pkg).unwrap();
-            reasons.iter().for_each(|reason| {
-                let reason_idx = map_pkg_idx.get(reason).unwrap();
-                g_.add_edge(*reason_idx, *pkg_idx, String::from(""));
-            })
-        });
+        for node in g.graph.nodes() {
+            map_pkg_idx.insert(node.clone(), g_.add_node(node.clone()));
+        }
+
+        for (i, j) in g.graph.edges() {
+            let ix = map_pkg_idx.get(i).unwrap();
+            let jx = map_pkg_idx.get(j).unwrap();
+            g_.add_edge(*ix, *jx, String::from(""));
+        }
+
         g_
     }
 }
