@@ -52,7 +52,7 @@ fn demo_deps() -> Result<()> {
         .find(|p| p.name() == "electron")
         .unwrap()
         .clone();
-    let solution = resolver.resolve(&[initial_package], always_depend, always_deny_cyclic)?;
+    let solution = resolver.resolve(&[initial_package], always_depend, allow_if_pacman)?;
     println!(
         "{} packages: \n{:#?}",
         solution.packages.len(),
