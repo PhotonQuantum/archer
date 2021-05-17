@@ -26,12 +26,6 @@ impl PartialOrd for Package {
     }
 }
 
-impl AsRef<Self> for Package {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
 impl Display for Package {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let source = match self {
