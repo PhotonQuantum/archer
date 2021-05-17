@@ -82,7 +82,7 @@ impl PlanBuilder {
                 .find_packages(&**pkg_to_build.make_depends())?;
 
             // search aur depends
-            let aur_deps = self
+            let aur_custom_deps = self
                 .global_repo
                 .find_packages(&**pkg_to_build.depends())?
                 .into_iter()
@@ -91,10 +91,11 @@ impl PlanBuilder {
                     match first_pkg {
                         Package::PacmanPackage(_) => None,
                         Package::AurPackage(_) => Some(first_pkg),
+                        Package::CustomPackage(_) => Some(first_pkg),
                     }
                 })
                 .collect_vec();
-            let mut aur_make_deps = vec![];
+            let mut aur_custom_make_deps = vec![];
             let mut pacman_make_deps = vec![];
 
             // split make depends by source (aur/pacman)
@@ -113,7 +114,8 @@ impl PlanBuilder {
                 if let Some(pkg) = deps.pop() {
                     match pkg {
                         Package::PacmanPackage(_) => pacman_make_deps.push(pkg),
-                        Package::AurPackage(_) => aur_make_deps.push(pkg),
+                        Package::AurPackage(_) => aur_custom_make_deps.push(pkg),
+                        Package::CustomPackage(_) => aur_custom_make_deps.push(pkg),
                     }
                 }
             }
@@ -121,7 +123,11 @@ impl PlanBuilder {
             // build & install aur make dependencies
             for mut pkgs in self
                 .global_resolver
-                .resolve(&*aur_make_deps, makedepend_if_aur, allow_if_pacman)?
+                .resolve(
+                    &*aur_custom_make_deps,
+                    makedepend_if_aur_custom,
+                    allow_if_pacman,
+                )?
                 .strongly_connected_components()
             {
                 // TODO avoid dup build
@@ -152,7 +158,7 @@ impl PlanBuilder {
             }
 
             // need to build its aur dependencies
-            pkgs_to_build.extend(aur_deps);
+            pkgs_to_build.extend(aur_custom_deps);
 
             // build this package
             // TODO avoid dup build

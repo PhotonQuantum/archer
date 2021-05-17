@@ -28,10 +28,11 @@ pub fn always_depend(_: &Package) -> DependPolicy {
     BitFlags::from(DependChoice::Depends)
 }
 
-pub fn makedepend_if_aur(pkg: &Package) -> DependPolicy {
+pub fn makedepend_if_aur_custom(pkg: &Package) -> DependPolicy {
     match pkg {
         Package::PacmanPackage(_) => BitFlags::from(DependChoice::Depends),
         Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
+        Package::CustomPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
     }
 }
 

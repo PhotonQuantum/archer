@@ -27,7 +27,8 @@
   + [x] batch query
   + [x] parallel query for aur
   + [ ] custom pkgbuild support
-    * [ ] basic impl
+    * [x] basic impl
+    * [ ] custom repo
     * [ ] support .SRCINFO
   + [ ] plan builder
     * [x] basic impl

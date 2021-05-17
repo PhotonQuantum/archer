@@ -10,6 +10,7 @@ use super::*;
 pub enum Package {
     PacmanPackage(OwnedPacmanPackage),
     AurPackage(AurPackage),
+    CustomPackage(CustomPackage),
 }
 
 impl PartialOrd for Package {
@@ -18,7 +19,11 @@ impl PartialOrd for Package {
         (self.name() == other.name()).then(|| match self.version().cmp(&other.version()) {
             Ordering::Equal => match (self, other) {
                 (PacmanPackage(_), AurPackage(_)) => Ordering::Greater,
+                (PacmanPackage(_), CustomPackage(_)) => Ordering::Greater,
                 (AurPackage(_), PacmanPackage(_)) => Ordering::Less,
+                (CustomPackage(_), PacmanPackage(_)) => Ordering::Less,
+                (CustomPackage(_), AurPackage(_)) => Ordering::Greater,
+                (AurPackage(_), CustomPackage(_)) => Ordering::Less,
                 _ => other.depends().len().cmp(&self.depends().len()),
             },
             ord => ord,
@@ -31,6 +36,7 @@ impl Display for Package {
         let source = match self {
             Package::PacmanPackage(_) => "pacman",
             Package::AurPackage(_) => "aur",
+            Package::CustomPackage(_) => "custom",
         };
         write!(f, "[{}] {} {}", source, self.name(), self.version())
     }
@@ -68,6 +74,7 @@ impl<'a> Package {
         match self {
             Package::PacmanPackage(pkg) => pkg.name.as_str(),
             Package::AurPackage(pkg) => pkg.name.as_str(),
+            Package::CustomPackage(pkg) => pkg.name.as_str(),
         }
     }
 
@@ -75,6 +82,7 @@ impl<'a> Package {
         match self {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.version),
             Package::AurPackage(pkg) => Cow::Owned(Version(pkg.version.clone())),
+            Package::CustomPackage(pkg) => Cow::Owned(Version(pkg.data.pkgver.0.clone())),
         }
     }
 
@@ -82,6 +90,7 @@ impl<'a> Package {
         match self {
             Package::PacmanPackage(pkg) => pkg.desc.as_deref(),
             Package::AurPackage(pkg) => pkg.description.as_deref(),
+            Package::CustomPackage(pkg) => pkg.data.pkgdesc.as_deref(),
         }
     }
 
@@ -89,6 +98,7 @@ impl<'a> Package {
         match self {
             Package::PacmanPackage(pkg) => pkg.url.as_deref(),
             Package::AurPackage(pkg) => pkg.url.as_deref(),
+            Package::CustomPackage(pkg) => pkg.data.url.as_deref(),
         }
     }
 
@@ -98,6 +108,15 @@ impl<'a> Package {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.depends),
             Package::AurPackage(pkg) => Cow::Owned(
                 pkg.depends
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
+            Package::CustomPackage(pkg) => Cow::Owned(
+                pkg.data
+                    .depends
+                    .as_ref()
+                    .unwrap_or(&vec![])
                     .iter()
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),
@@ -115,6 +134,15 @@ impl<'a> Package {
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),
             ),
+            Package::CustomPackage(pkg) => Cow::Owned(
+                pkg.data
+                    .makedepends
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 
@@ -123,6 +151,15 @@ impl<'a> Package {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.conflicts),
             Package::AurPackage(pkg) => Cow::Owned(
                 pkg.conflicts
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
+            Package::CustomPackage(pkg) => Cow::Owned(
+                pkg.data
+                    .conflicts
+                    .as_ref()
+                    .unwrap_or(&vec![])
                     .iter()
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),
@@ -139,6 +176,15 @@ impl<'a> Package {
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),
             ),
+            Package::CustomPackage(pkg) => Cow::Owned(
+                pkg.data
+                    .provides
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
         }
     }
 
@@ -147,6 +193,15 @@ impl<'a> Package {
             Package::PacmanPackage(pkg) => Cow::Borrowed(&pkg.replaces),
             Package::AurPackage(pkg) => Cow::Owned(
                 pkg.replaces
+                    .iter()
+                    .map(|s| Depend::from_str(s).unwrap())
+                    .collect(),
+            ),
+            Package::CustomPackage(pkg) => Cow::Owned(
+                pkg.data
+                    .replaces
+                    .as_ref()
+                    .unwrap_or(&vec![])
                     .iter()
                     .map(|s| Depend::from_str(s).unwrap())
                     .collect(),

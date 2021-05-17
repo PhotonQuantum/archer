@@ -5,7 +5,7 @@ use crate::types::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum ParseError {
     #[error("pacman - {0}")]
     PacmanError(String),
@@ -43,4 +43,6 @@ pub enum Error {
     RecursionError,
     #[error("internal graph error: {0}")]
     GraphError(#[from] GraphError),
+    #[error("io error: {0}")]
+    IOError(#[from] std::io::Error),
 }
