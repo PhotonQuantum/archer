@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 
-use crate::types::*;
+pub use crate::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct PackageAssertion {

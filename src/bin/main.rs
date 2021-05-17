@@ -7,8 +7,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use itertools::Itertools;
-use petgraph::dot::{Config, Dot};
-use petgraph::Graph;
 
 use archer_lib::prelude::*;
 
@@ -63,7 +61,8 @@ fn demo_deps() -> Result<()> {
             .join(", ")
     );
     let mut f = File::create("output.dot")?;
-    let graph = Graph::from(&solution);
-    write!(f, "{}", Dot::with_config(&graph, &[Config::EdgeNoLabel])).unwrap();
+    write!(f, "{}", solution.graph.dot())?;
+    // let graph = Graph::from(&solution);
+    // write!(f, "{}", Dot::with_config(&graph, &[Config::EdgeNoLabel])).unwrap();
     Ok(())
 }

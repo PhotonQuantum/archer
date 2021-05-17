@@ -3,8 +3,6 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use petgraph::Graph;
-
 use crate::error::Result;
 use crate::resolver::types::graph::{EdgeEffect, SCCGraph};
 use crate::types::*;
@@ -218,24 +216,5 @@ impl Context {
     // This is actually SCC because we need to deal with loops
     pub fn strongly_connected_components(&self) -> Vec<Vec<&Arc<Package>>> {
         self.graph.strongly_connected_components(true)
-    }
-}
-
-impl From<&Context> for Graph<Arc<Package>, String> {
-    fn from(g: &Context) -> Self {
-        let mut g_ = Graph::new();
-        let mut map_pkg_idx = HashMap::new();
-
-        for node in g.graph.nodes() {
-            map_pkg_idx.insert(node.clone(), g_.add_node(node.clone()));
-        }
-
-        for (i, j) in g.graph.edges() {
-            let ix = map_pkg_idx.get(i).unwrap();
-            let jx = map_pkg_idx.get(j).unwrap();
-            g_.add_edge(*ix, *jx, String::from(""));
-        }
-
-        g_
     }
 }

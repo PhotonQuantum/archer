@@ -4,12 +4,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use rstest::rstest;
 
-use crate::prelude::{allow_if_pacman, always_deny_cyclic};
-use crate::repository::*;
-use crate::resolver::tree_resolv::TreeResolver;
-use crate::resolver::types::{always_depend, ResolvePolicy};
 use crate::tests::*;
-use crate::types::*;
 
 #[rstest]
 #[case(vec![pkg!("a"), pkg!("b", "1.0.0", deps!("a")), pkg!("c", "1.0.0", deps!("a")), pkg!("d"), pkg!("e", "1.0.0", deps!("b")), pkg!("f", "1.0.0", deps!("c", "e"))],

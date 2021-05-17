@@ -17,7 +17,7 @@
   + [x] graph output
     * [x] use petgraph impl
     * [x] migrate to custom impl
-    * [ ] custom dot output
+    * [x] custom dot output
   + [x] skip policy (ignore packages existing in certain repo)
   + [x] handle cyclic deps
   + [x] toposort & SCC
