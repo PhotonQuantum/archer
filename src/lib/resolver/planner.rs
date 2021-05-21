@@ -22,17 +22,19 @@ impl Default for PlanBuilder {
         let aur_repo = Arc::new(CachedRepository::new(Arc::new(AurRepo::new())));
         let local_repo = Arc::new(CachedRepository::new(Arc::new(PacmanLocal::new())));
         let remote_repo = Arc::new(CachedRepository::new(Arc::new(PacmanRemote::new())));
-        let global_repo = Arc::new(MergedRepository::new(vec![
-            remote_repo.clone(),
-            aur_repo,
-        ]));
+        let global_repo = Arc::new(MergedRepository::new(vec![remote_repo.clone(), aur_repo]));
 
         let remote_policy = ResolvePolicy::new(remote_repo, local_repo.clone(), local_repo.clone());
         let global_policy =
             ResolvePolicy::new(global_repo.clone(), local_repo.clone(), local_repo.clone());
 
-        let pacman_resolver = TreeResolver::new(remote_policy, box always_depend, box allow_if_pacman);
-        let global_resolver = TreeResolver::new(global_policy, box makedepend_if_aur_custom, box allow_if_pacman);
+        let pacman_resolver =
+            TreeResolver::new(remote_policy, box always_depend, box allow_if_pacman);
+        let global_resolver = TreeResolver::new(
+            global_policy,
+            box makedepend_if_aur_custom,
+            box allow_if_pacman,
+        );
         Self {
             pkgs: vec![],
             local_repo,

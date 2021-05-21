@@ -47,9 +47,7 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         .find(|p| p.name() == pkg)
         .unwrap()
         .clone();
-    let solution = resolver
-        .resolve(&[initial_package])
-        .expect("can't resolve");
+    let solution = resolver.resolve(&[initial_package]).expect("can't resolve");
     assert!(!solution.packages.is_empty(), "solution is empty");
     println!(
         "Result: {:#?}",

@@ -12,6 +12,7 @@
 #![feature(hash_drain_filter)]
 #![feature(bound_cloned)]
 #![feature(box_syntax)]
+#![feature(destructuring_assignment)]
 
 pub use utils::load_alpm;
 

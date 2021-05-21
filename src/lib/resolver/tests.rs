@@ -26,9 +26,7 @@ fn simple_deps(
         .unwrap()
         .pop()
         .unwrap();
-    let result = resolver
-        .resolve(&[pkg])
-        .expect("can't find solution");
+    let result = resolver.resolve(&[pkg]).expect("can't find solution");
     let scc = result.strongly_connected_components();
     println!(
         "{:?}",
@@ -61,9 +59,7 @@ fn cyclic_deps(
         .unwrap()
         .pop()
         .unwrap();
-    let result = resolver
-        .resolve(&[pkg])
-        .expect("can't find solution");
+    let result = resolver.resolve(&[pkg]).expect("can't find solution");
     let scc = result.strongly_connected_components();
     println!(
         "{:?}",
