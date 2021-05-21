@@ -1,3 +1,5 @@
+#![feature(box_syntax)]
+
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -37,7 +39,7 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         },
         Arc::new(CachedRepository::new(local_repo)),
     );
-    let resolver = TreeResolver::new(policy);
+    let resolver = TreeResolver::new(policy, box always_depend, box allow_if_pacman);
     let initial_package = remote_repo
         .find_package(&Depend::from_str(pkg).unwrap())
         .expect("can't search package")
@@ -46,7 +48,7 @@ fn must_resolve(pkg: &str, skip_remote: bool) {
         .unwrap()
         .clone();
     let solution = resolver
-        .resolve(&[initial_package], always_depend, allow_if_pacman)
+        .resolve(&[initial_package])
         .expect("can't resolve");
     assert!(!solution.packages.is_empty(), "solution is empty");
     println!(

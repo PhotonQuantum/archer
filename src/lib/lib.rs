@@ -11,6 +11,7 @@
 #![feature(never_type)]
 #![feature(hash_drain_filter)]
 #![feature(bound_cloned)]
+#![feature(box_syntax)]
 
 pub use utils::load_alpm;
 

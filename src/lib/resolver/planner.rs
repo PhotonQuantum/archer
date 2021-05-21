@@ -9,13 +9,10 @@ use crate::types::*;
 
 use super::{tree_resolv::TreeResolver, types::*};
 
-#[derive(Clone)]
 pub struct PlanBuilder {
     pkgs: Vec<Package>,
     local_repo: Arc<CachedRepository>,
-    aur_repo: Arc<CachedRepository>,
     global_repo: Arc<MergedRepository>,
-    aur_resolver: TreeResolver,
     pacman_resolver: TreeResolver,
     global_resolver: TreeResolver,
 }
@@ -27,24 +24,19 @@ impl Default for PlanBuilder {
         let remote_repo = Arc::new(CachedRepository::new(Arc::new(PacmanRemote::new())));
         let global_repo = Arc::new(MergedRepository::new(vec![
             remote_repo.clone(),
-            aur_repo.clone(),
+            aur_repo,
         ]));
 
-        let aur_policy =
-            ResolvePolicy::new(global_repo.clone(), remote_repo.clone(), local_repo.clone());
         let remote_policy = ResolvePolicy::new(remote_repo, local_repo.clone(), local_repo.clone());
         let global_policy =
             ResolvePolicy::new(global_repo.clone(), local_repo.clone(), local_repo.clone());
 
-        let aur_resolver = TreeResolver::new(aur_policy);
-        let pacman_resolver = TreeResolver::new(remote_policy);
-        let global_resolver = TreeResolver::new(global_policy);
+        let pacman_resolver = TreeResolver::new(remote_policy, box always_depend, box allow_if_pacman);
+        let global_resolver = TreeResolver::new(global_policy, box makedepend_if_aur_custom, box allow_if_pacman);
         Self {
             pkgs: vec![],
             local_repo,
-            aur_repo,
             global_repo,
-            aur_resolver,
             pacman_resolver,
             global_resolver,
         }
@@ -123,11 +115,7 @@ impl PlanBuilder {
             // build & install aur make dependencies
             for mut pkgs in self
                 .global_resolver
-                .resolve(
-                    &*aur_custom_make_deps,
-                    makedepend_if_aur_custom,
-                    allow_if_pacman,
-                )?
+                .resolve(&*aur_custom_make_deps)?
                 .strongly_connected_components()
             {
                 // TODO avoid dup build
@@ -149,7 +137,7 @@ impl PlanBuilder {
             // pacman makedeps are installed behind aur deps to avoid being uninstalled later by deps of aur makedeps
             for pkgs in self
                 .pacman_resolver
-                .resolve(&*pacman_make_deps, always_depend, allow_if_pacman)?
+                .resolve(&*pacman_make_deps)?
                 .strongly_connected_components()
             {
                 plan.push(PlanAction::InstallGroup(

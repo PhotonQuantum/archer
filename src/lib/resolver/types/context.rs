@@ -31,6 +31,8 @@ impl Hash for Context {
     }
 }
 
+pub type MaybeCycle = Option<Vec<ArcPackage>>;
+
 impl Context {
     pub fn is_empty(&self) -> bool {
         self.packages.is_empty()
@@ -145,7 +147,7 @@ impl Context {
         mut self,
         pkg: Arc<Package>,
         reasons: HashSet<Arc<Package>>,
-    ) -> Option<(Self, Option<Vec<Arc<Package>>>)> {
+    ) -> Option<(Self, MaybeCycle)> {
         self.insert_mut(pkg, reasons)
             .map(|maybe_cycle| (self, maybe_cycle))
     }
@@ -155,7 +157,7 @@ impl Context {
         &mut self,
         pkg: Arc<Package>,
         reasons: HashSet<Arc<Package>>,
-    ) -> Option<Option<Vec<Arc<Package>>>> {
+    ) -> Option<MaybeCycle> {
         // TODO unchecked insert
         if self.is_compatible(&*pkg) {
             let name = pkg.name().to_string();

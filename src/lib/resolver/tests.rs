@@ -19,7 +19,7 @@ fn simple_deps(
     let repo = Arc::new(CustomRepository::new(pkgs));
     let empty_repo = Arc::new(EmptyRepository::new());
     let policy = ResolvePolicy::new(repo.clone(), empty_repo.clone(), empty_repo);
-    let resolver = TreeResolver::new(policy);
+    let resolver = TreeResolver::new(policy, box always_depend, box allow_if_pacman);
 
     let pkg = repo
         .find_package(&Depend::from_str(target).unwrap())
@@ -27,7 +27,7 @@ fn simple_deps(
         .pop()
         .unwrap();
     let result = resolver
-        .resolve(&[pkg], always_depend, allow_if_pacman)
+        .resolve(&[pkg])
         .expect("can't find solution");
     let scc = result.strongly_connected_components();
     println!(
@@ -54,7 +54,7 @@ fn cyclic_deps(
     let repo = Arc::new(CustomRepository::new(pkgs));
     let empty_repo = Arc::new(EmptyRepository::new());
     let policy = ResolvePolicy::new(repo.clone(), empty_repo.clone(), empty_repo);
-    let resolver = TreeResolver::new(policy);
+    let resolver = TreeResolver::new(policy, box always_depend, box allow_if_pacman);
 
     let pkg = repo
         .find_package(&Depend::from_str(target).unwrap())
@@ -62,7 +62,7 @@ fn cyclic_deps(
         .pop()
         .unwrap();
     let result = resolver
-        .resolve(&[pkg], always_depend, allow_if_pacman)
+        .resolve(&[pkg])
         .expect("can't find solution");
     let scc = result.strongly_connected_components();
     println!(

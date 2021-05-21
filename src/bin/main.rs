@@ -1,3 +1,4 @@
+#![feature(box_syntax)]
 #![deny(clippy::all)]
 
 use std::fs::File;
@@ -43,14 +44,14 @@ fn demo_deps() -> Result<()> {
         // Arc::new(EmptyRepository::new()),
         Arc::new(CachedRepository::new(local_repo)),
     );
-    let resolver = TreeResolver::new(policy);
+    let resolver = TreeResolver::new(policy, box always_depend, box allow_if_pacman);
     let initial_package = remote_repo
         .find_package(&Depend::from_str("electron").unwrap())?
         .iter()
         .find(|p| p.name() == "electron")
         .unwrap()
         .clone();
-    let solution = resolver.resolve(&[initial_package], always_depend, allow_if_pacman)?;
+    let solution = resolver.resolve(&[initial_package])?;
     println!(
         "{} packages: \n{:#?}",
         solution.packages.len(),

@@ -13,9 +13,10 @@ use super::types::*;
 
 type CtxWithCycles = (Context, Vec<Vec<ArcPackage>>);
 
-#[derive(Clone)]
 pub struct TreeResolver {
-    policy: ResolvePolicy,
+    resolve_policy: ResolvePolicy,
+    depend_policy: Box<dyn Fn(&Package) -> DependPolicy>,
+    cyclic_policy: Box<dyn Fn(&[&Package]) -> bool>,
 }
 
 enum Candidate<'a> {
@@ -25,8 +26,16 @@ enum Candidate<'a> {
 
 impl TreeResolver {
     #[must_use]
-    pub const fn new(policy: ResolvePolicy) -> Self {
-        Self { policy }
+    pub fn new(
+        resolve_policy: ResolvePolicy,
+        depend_policy: Box<dyn Fn(&Package) -> DependPolicy>,
+        cyclic_policy: Box<dyn Fn(&[&Package]) -> bool>,
+    ) -> Self {
+        Self {
+            resolve_policy,
+            depend_policy,
+            cyclic_policy,
+        }
     }
 
     fn insert_into_ctx(
@@ -52,8 +61,8 @@ impl TreeResolver {
         ctx: &mut Context,
         pkg: ArcPackage,
         reason: HashSet<ArcPackage>,
-    ) -> Result<Option<Option<Vec<ArcPackage>>>> {
-        if self.policy.is_mortal_blade(&*pkg)? {
+    ) -> Result<Option<MaybeCycle>> {
+        if self.resolve_policy.is_mortal_blade(&*pkg)? {
             Err(Error::DependencyError(DependencyError::ConflictDependency(
                 String::from("conflict with immortal package"),
             )))
@@ -62,13 +71,7 @@ impl TreeResolver {
         }
     }
 
-    // TODO dfs only, no topo sort yet
-    pub fn resolve(
-        &self,
-        pkgs: &[Package],
-        depend_policy_fn: impl Fn(&Package) -> DependPolicy + Copy,
-        cyclic_policy_fn: impl Fn(&[&Package]) -> bool + Copy,
-    ) -> Result<Context> {
+    pub fn resolve(&self, pkgs: &[Package]) -> Result<Context> {
         let mut stage_ctxs: Vec<Box<dyn Iterator<Item = CtxWithCycles>>> = vec![];
         let mut depth = 0;
 
@@ -76,7 +79,7 @@ impl TreeResolver {
         let initial_ctx = pkgs
             .iter()
             .filter(|pkg| {
-                self.policy
+                self.resolve_policy
                     .skip_repo
                     .find_package(&Depend::from(*pkg))
                     .unwrap()
@@ -93,8 +96,7 @@ impl TreeResolver {
                     Ok(ctx)
                 })
             })?;
-        let initial_pkgs =
-            self.next_candidates(&initial_ctx, initial_ctx.clone(), depend_policy_fn)?;
+        let initial_pkgs = self.next_candidates(&initial_ctx, initial_ctx.clone())?;
         if let Candidate::Continue(initial_pkgs) = initial_pkgs {
             stage_ctxs.push(initial_pkgs);
         } else {
@@ -126,7 +128,7 @@ impl TreeResolver {
                 }
                 if !maybe_cycle.is_empty()
                     && maybe_cycle.into_iter().all(|cycle| {
-                        !cyclic_policy_fn(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())
+                        !(self.cyclic_policy)(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())
                     })
                 {
                     // TODO error report
@@ -155,8 +157,7 @@ impl TreeResolver {
                 // Current set of candidates accepted, start forming next stage
 
                 println!("searching candidates");
-                let next_candidates =
-                    self.next_candidates(&candidates, partial_solution.clone(), depend_policy_fn);
+                let next_candidates = self.next_candidates(&candidates, partial_solution.clone());
                 let next_candidates = if let Err(Error::DependencyError(_)) = next_candidates {
                     continue; // all solutions derived from current set of candidates will cause a conflict, try the next set of candidates
                 } else {
@@ -166,7 +167,7 @@ impl TreeResolver {
                     Candidate::Continue(v) => v,
                     Candidate::Finish((ctx, maybe_cycle)) => {
                         if let Some(cycle) = maybe_cycle {
-                            if !cyclic_policy_fn(
+                            if !(self.cyclic_policy)(
                                 &cycle.iter().map(|pkg| pkg.as_ref()).collect_vec(),
                             ) {
                                 continue;
@@ -192,7 +193,6 @@ impl TreeResolver {
         &'a self,
         candidates: &Context,
         partial_solution: Context,
-        depend_policy_fn: impl Fn(&Package) -> DependPolicy,
     ) -> Result<Candidate<'a>> {
         let mut base_ctx = candidates.clone();
 
@@ -207,12 +207,16 @@ impl TreeResolver {
             .fold(
                 HashMap::new(),
                 |mut acc: HashMap<String, (Depend, Vec<ArcPackage>)>, x| {
-                    let depend_policy = depend_policy_fn(x.as_ref());
+                    let depend_policy = (self.depend_policy)(x.as_ref());
                     if depend_policy.contains(DependChoice::Depends) {
                         x.depends()
                             .iter()
                             .filter(|dep| {
-                                self.policy.skip_repo.find_package(dep).unwrap().is_empty()
+                                self.resolve_policy
+                                    .skip_repo
+                                    .find_package(dep)
+                                    .unwrap()
+                                    .is_empty()
                             }) // TODO error handling
                             .for_each(|dep| {
                                 acc.entry(dep.name.clone())
@@ -228,7 +232,11 @@ impl TreeResolver {
                         x.make_depends()
                             .iter()
                             .filter(|dep| {
-                                self.policy.skip_repo.find_package(dep).unwrap().is_empty()
+                                self.resolve_policy
+                                    .skip_repo
+                                    .find_package(dep)
+                                    .unwrap()
+                                    .is_empty()
                             }) // TODO error handling
                             .for_each(|dep| {
                                 acc.entry(dep.name.clone())
@@ -313,12 +321,12 @@ impl TreeResolver {
             return Ok(Candidate::Finish((Box::new(base_ctx), maybe_cycle)));
         }
 
-        let cloned_policy = self.policy.clone(); // clone for closure use
+        let cloned_policy = self.resolve_policy.clone(); // clone for closure use
 
         // Layout of `resolved_deps`:
         // [[solution1, solution2, ...]: dep1, dep2, ...]
         let resolved_deps = self
-            .policy
+            .resolve_policy
             .from_repo
             .find_packages(&*map_dep_parents.keys().cloned().collect_vec())
             .map(move |i| {
