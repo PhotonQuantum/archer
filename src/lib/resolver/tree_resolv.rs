@@ -323,7 +323,7 @@ impl TreeResolver {
     fn merge_pkgs_into_ctx(
         pkgs: Vec<(Depend, ArcPackage)>,
         base_ctx: &Context,
-        map_dep_parents: &HashMap<Depend, Vec<Arc<Package>>>,
+        map_dep_parents: &HashMap<Depend, Vec<ArcPackage>>,
         maybe_cycle: &MaybeCycle,
     ) -> Option<CtxWithCycles> {
         pkgs.into_iter().fold(
@@ -370,7 +370,7 @@ impl TreeResolver {
     }
 
     fn exclude_satisfied_deps(
-        map_dep_parents: &mut HashMap<Depend, Vec<Arc<Package>>>,
+        map_dep_parents: &mut HashMap<Depend, Vec<ArcPackage>>,
         base_ctx: Context,
         satisfied_by_ctx: &Context,
         maybe_cycle: MaybeCycle,
@@ -399,7 +399,7 @@ impl TreeResolver {
         base_ctx: Context,
         satisfied_by_ctx: &Context,
         dep: &Depend,
-        requesting_pkgs: &[Arc<Package>],
+        requesting_pkgs: &[ArcPackage],
     ) -> (Context, MaybeCycle) {
         // TODO optimize this (add package info to provide set)
         satisfied_by_ctx

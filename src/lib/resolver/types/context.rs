@@ -9,8 +9,8 @@ use crate::types::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct Context {
-    pub packages: HashMap<String, Arc<Package>>,
-    pub graph: SCCGraph<Arc<Package>>,
+    pub packages: HashMap<String, ArcPackage>,
+    pub graph: SCCGraph<ArcPackage>,
     pub conflicts: HashMap<String, Arc<DependVersion>>,
     pub provides: HashMap<String, Arc<DependVersion>>,
 }
@@ -40,17 +40,17 @@ impl Context {
 
     pub fn add_edge(
         &mut self,
-        i: &Arc<Package>,
-        j: &Arc<Package>,
-    ) -> Result<EdgeEffect<Arc<Package>>> {
+        i: &ArcPackage,
+        j: &ArcPackage,
+    ) -> Result<EdgeEffect<ArcPackage>> {
         self.graph.insert(i, j)
     }
 
-    pub fn pkgs(&self) -> Values<String, Arc<Package>> {
+    pub fn pkgs(&self) -> Values<String, ArcPackage> {
         self.packages.values()
     }
 
-    pub fn pkgs_mut(&mut self) -> ValuesMut<String, Arc<Package>> {
+    pub fn pkgs_mut(&mut self) -> ValuesMut<String, ArcPackage> {
         self.packages.values_mut()
     }
 
@@ -145,8 +145,8 @@ impl Context {
     }
     pub fn insert(
         mut self,
-        pkg: Arc<Package>,
-        reasons: HashSet<Arc<Package>>,
+        pkg: ArcPackage,
+        reasons: HashSet<ArcPackage>,
     ) -> Option<(Self, MaybeCycle)> {
         self.insert_mut(pkg, reasons)
             .map(|maybe_cycle| (self, maybe_cycle))
@@ -155,8 +155,8 @@ impl Context {
     // success(hascycle(cycle))
     pub fn insert_mut(
         &mut self,
-        pkg: Arc<Package>,
-        reasons: HashSet<Arc<Package>>,
+        pkg: ArcPackage,
+        reasons: HashSet<ArcPackage>,
     ) -> Option<MaybeCycle> {
         // TODO unchecked insert
         if self.is_compatible(&*pkg) {
@@ -216,7 +216,7 @@ impl Context {
 
     // TODO custom impl
     // This is actually SCC because we need to deal with loops
-    pub fn strongly_connected_components(&self) -> Vec<Vec<&Arc<Package>>> {
+    pub fn strongly_connected_components(&self) -> Vec<Vec<&ArcPackage>> {
         self.graph.strongly_connected_components(true)
     }
 }

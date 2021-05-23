@@ -7,7 +7,6 @@
 )]
 #![feature(box_patterns)]
 #![feature(bool_to_option)]
-#![feature(try_trait)]
 #![feature(never_type)]
 #![feature(hash_drain_filter)]
 #![feature(bound_cloned)]
