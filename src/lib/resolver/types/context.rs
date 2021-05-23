@@ -38,11 +38,7 @@ impl Context {
         self.packages.is_empty()
     }
 
-    pub fn add_edge(
-        &mut self,
-        i: &ArcPackage,
-        j: &ArcPackage,
-    ) -> Result<EdgeEffect<ArcPackage>> {
+    pub fn add_edge(&mut self, i: &ArcPackage, j: &ArcPackage) -> Result<EdgeEffect<ArcPackage>> {
         self.graph.insert(i, j)
     }
 

@@ -12,6 +12,7 @@
 #![feature(bound_cloned)]
 #![feature(box_syntax)]
 #![feature(destructuring_assignment)]
+#![feature(capture_disjoint_fields)]
 
 pub use utils::load_alpm;
 
@@ -21,6 +22,7 @@ mod tests;
 
 pub mod alpm;
 pub mod consts;
+pub mod database;
 pub mod error;
 pub mod parser;
 pub mod prelude;
