@@ -3,6 +3,8 @@ use std::str::FromStr;
 
 use alpm::Dep;
 use ranges::{GenericRange, Ranges};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::*;
 
@@ -10,6 +12,45 @@ use super::*;
 pub struct Depend {
     pub name: String,
     pub version: DependVersion,
+}
+
+impl<'de> Deserialize<'de> for Depend {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        struct VisitorImpl;
+
+        impl<'de> Visitor<'de> for VisitorImpl {
+            type Value = Depend;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(
+                    formatter,
+                    "dependency name(like 'test') with or without version constraint"
+                )
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(Depend::from_str(v).unwrap())
+            }
+        }
+
+        deserializer.deserialize_str(VisitorImpl)
+    }
+}
+
+impl Serialize for Depend {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
 }
 
 impl Depend {

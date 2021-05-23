@@ -6,10 +6,55 @@ use std::ops::RangeBounds;
 
 use alpm::DepModVer;
 use ranges::{Domain, GenericRange, Ranges};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // TODO figure out a way to handle `epoch` field. see https://wiki.archlinux.org/index.php/PKGBUILD#Version
 #[derive(Debug, Clone)]
 pub struct Version(pub String);
+
+impl Serialize for Version {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&*self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Version {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        struct VisitorImpl;
+
+        impl<'de> Visitor<'de> for VisitorImpl {
+            type Value = Version;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "version")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(Version(String::from(v)))
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(Version(v))
+            }
+        }
+
+        deserializer.deserialize_string(VisitorImpl)
+    }
+}
 
 impl From<&alpm::Ver> for Version {
     fn from(ver: &alpm::Ver) -> Self {

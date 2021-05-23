@@ -45,4 +45,8 @@ pub enum Error {
     GraphError(#[from] GraphError),
     #[error("io error: {0}")]
     IOError(#[from] std::io::Error),
+    #[error("unrecognized archive format")]
+    ArchiveError,
+    #[error("invalid package format")]
+    PackageError,
 }
