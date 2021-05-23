@@ -13,17 +13,17 @@ pub struct Archive {
 impl Archive {
     #[allow(clippy::unused_io_amount)]
     pub fn from_reader(mut reader: impl Read) -> Result<Self> {
-        let mut head = [0; 2048];
+        let mut head = [0; 512];
         let head_bytes = reader.read(&mut head)?;
-        let mime = tree_magic::from_u8(&head);
+        let mime = infer::get(&head).ok_or(Error::ArchiveError)?;
 
-        let mut reader = if head_bytes == 2048 {
+        let mut reader = if head_bytes == 512 {
             Box::new(Cursor::new(head).chain(reader)) as Box<dyn Read>
         } else {
             Box::new(&head[..head_bytes]) as Box<dyn Read>
         };
         let mut data: Vec<u8> = Vec::new();
-        match mime.as_str() {
+        match mime.mime_type() {
             "application/zstd" => {
                 zstd::stream::copy_decode(reader, &mut data)?;
             }
