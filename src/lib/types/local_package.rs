@@ -45,8 +45,9 @@ pub struct LocalPackage {
     #[serde(rename = "SHA256SUM")]
     pub sha256_sum: String,
     /// PGP signature
-    #[serde(rename = "PGPSIG")]
-    pub pgp_signature: String,
+    #[serde(rename = "PGPSIG", skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub pgp_signature: Option<String>,
     /// package home url
     #[serde(rename = "URL", skip_serializing_if = "Option::is_none")]
     #[builder(default)]
@@ -99,77 +100,63 @@ impl From<PkgInfo> for LocalPackageBuilder {
             .name(info.pkg_name)
             .base(info.pkg_base)
             .version(Version(info.pkg_ver))
-            .description(info.pkg_desc.is_empty().then_some(info.pkg_desc))
+            .description((!info.pkg_desc.is_empty()).then_some(info.pkg_desc))
             .url(info.url)
-            .installed_size(info.size as u64)
+            .installed_size(u64::from(info.size))
             .arch(info.arch.to_string())
             .packager(info.packager)
             .build_date(chrono::NaiveDateTime::from_timestamp(
                 info.build_date as i64,
                 0,
             ))
-            .groups(info.groups.is_empty().then_some(info.groups))
-            .license(info.license.is_empty().then(|| {
+            .groups((!info.groups.is_empty()).then_some(info.groups))
+            .license((!info.license.is_empty()).then(|| {
                 info.license
                     .into_iter()
                     .map(|item| item.to_string())
                     .collect()
             }))
-            .conflicts(info.conflict.is_empty().then(|| {
+            .conflicts((!info.conflict.is_empty()).then(|| {
                 info.conflict
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .provides(info.provides.is_empty().then(|| {
+            .provides((!info.provides.is_empty()).then(|| {
                 info.provides
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .replaces(info.replaces.is_empty().then(|| {
+            .replaces((!info.replaces.is_empty()).then(|| {
                 info.replaces
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .depends(info.depend.is_empty().then(|| {
+            .depends((!info.depend.is_empty()).then(|| {
                 info.depend
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .makedepends(info.make_depend.is_empty().then(|| {
+            .makedepends((!info.make_depend.is_empty()).then(|| {
                 info.make_depend
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .checkdepends(info.check_depend.is_empty().then(|| {
+            .checkdepends((!info.check_depend.is_empty()).then(|| {
                 info.check_depend
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-            .optdepends(info.opt_depend.is_empty().then(|| {
+            .optdepends((!info.opt_depend.is_empty()).then(|| {
                 info.opt_depend
                     .into_iter()
                     .map(|item| Depend::from_str(&*item).unwrap())
                     .collect()
             }))
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::fs::read_to_string;
-
-    use crate::types::local_package::LocalPackage;
-
-    #[test]
-    fn test() {
-        let a: LocalPackage =
-            archlinux_repo_parser::from_str(&read_to_string("PKGBUILD.demo").unwrap()).unwrap();
-        println!("{}", archlinux_repo_parser::to_string(&a).unwrap());
     }
 }

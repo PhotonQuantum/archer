@@ -1,10 +1,11 @@
-use std::fs::File;
+use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use itertools::Itertools;
 use rstest::rstest;
+
+use crate::database::builder::DBBuilder;
 
 use super::decompressor::Archive;
 
@@ -15,8 +16,8 @@ use super::decompressor::Archive;
 #[case("test.tar.zst")]
 fn must_decompress(#[case] name: &str) {
     println!("decompressing {}", name);
-    let path = PathBuf::from_str("tests/").unwrap().join(name);
-    let archive = Archive::from_file(&path).expect("unable to read archive");
+    let path = PathBuf::from_str("tests/archives/").unwrap().join(name);
+    let archive = Archive::from_filepath(&path).expect("unable to read archive");
     let mut tar = archive.into_tar();
     let mut entries = tar.entries().expect("unable to read entries");
 
@@ -40,4 +41,16 @@ fn must_decompress(#[case] name: &str) {
         .read_to_string(&mut buffer)
         .expect("unable to read file");
     assert_eq!(buffer, "test\n", "file content mismatch");
+}
+
+#[test]
+pub fn must_build() {
+    let mut builder = DBBuilder::new();
+    for path in fs::read_dir("tests/pkgs").expect("missing test directory") {
+        let path = path.expect("invalid dir entry");
+        builder.add_file_mut(path.path());
+    }
+    drop(fs::remove_dir_all("tests/output"));
+    fs::create_dir("tests/output").expect("unable to create test directory");
+    builder.build("tests/output").expect("unable to build db");
 }

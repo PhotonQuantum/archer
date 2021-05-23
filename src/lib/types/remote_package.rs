@@ -18,12 +18,12 @@ impl PartialOrd for Package {
         use Package::*;
         (self.name() == other.name()).then(|| match self.version().cmp(&other.version()) {
             Ordering::Equal => match (self, other) {
-                (PacmanPackage(_), AurPackage(_)) => Ordering::Greater,
-                (PacmanPackage(_), CustomPackage(_)) => Ordering::Greater,
-                (AurPackage(_), PacmanPackage(_)) => Ordering::Less,
-                (CustomPackage(_), PacmanPackage(_)) => Ordering::Less,
-                (CustomPackage(_), AurPackage(_)) => Ordering::Greater,
-                (AurPackage(_), CustomPackage(_)) => Ordering::Less,
+                (PacmanPackage(_), AurPackage(_))
+                | (CustomPackage(_), AurPackage(_))
+                | (PacmanPackage(_), CustomPackage(_)) => Ordering::Greater,
+                (AurPackage(_), PacmanPackage(_))
+                | (CustomPackage(_), PacmanPackage(_))
+                | (AurPackage(_), CustomPackage(_)) => Ordering::Less,
                 _ => other.depends().len().cmp(&self.depends().len()),
             },
             ord => ord,

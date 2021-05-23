@@ -2,3 +2,4 @@
 /vgcore*
 /.idea
 /output.dot
+/tests/output
