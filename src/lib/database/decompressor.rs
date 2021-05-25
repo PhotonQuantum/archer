@@ -6,12 +6,11 @@ use tar::Archive as TarArchive;
 
 use crate::error::{Error, Result};
 
-pub struct Archive {
+pub struct ArchiveReader {
     data: Vec<u8>,
 }
 
-impl Archive {
-    #[allow(clippy::unused_io_amount)]
+impl ArchiveReader {
     pub fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut head = [0; 512];
         let head_bytes = reader.read(&mut head)?;

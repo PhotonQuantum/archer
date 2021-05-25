@@ -5,9 +5,9 @@ use std::str::FromStr;
 
 use rstest::rstest;
 
-use crate::database::builder::DBBuilder;
+use crate::database::builder::{ArchiveMeta, BuildTarget, DBBuilder};
 
-use super::decompressor::Archive;
+use super::decompressor::ArchiveReader;
 
 #[rstest]
 #[case("test.tar")]
@@ -17,7 +17,7 @@ use super::decompressor::Archive;
 fn must_decompress(#[case] name: &str) {
     println!("decompressing {}", name);
     let path = PathBuf::from_str("tests/archives/").unwrap().join(name);
-    let archive = Archive::from_filepath(&path).expect("unable to read archive");
+    let archive = ArchiveReader::from_filepath(&path).expect("unable to read archive");
     let mut tar = archive.into_tar();
     let mut entries = tar.entries().expect("unable to read entries");
 
@@ -44,7 +44,7 @@ fn must_decompress(#[case] name: &str) {
 }
 
 #[test]
-pub fn must_build() {
+pub fn must_build_dir() {
     let mut builder = DBBuilder::new();
     for path in fs::read_dir("tests/pkgs").expect("missing test directory") {
         let path = path.expect("invalid dir entry");
@@ -52,5 +52,10 @@ pub fn must_build() {
     }
     drop(fs::remove_dir_all("tests/output"));
     fs::create_dir("tests/output").expect("unable to create test directory");
-    builder.build("tests/output").expect("unable to build db");
+    builder
+        .build(BuildTarget::new("tests/output", None))
+        .expect("unable to build db folder");
+    builder
+        .build(BuildTarget::new("tests/output", Some("test")))
+        .expect("unable to build db archive");
 }
