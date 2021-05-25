@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use rstest::rstest;
 
-use crate::database::pacman::{ArchiveMeta, BuildTarget, DBBuilder};
+use crate::database::pacman::{BuildTarget, DBBuilder};
 
 use super::decompressor::ArchiveReader;
 
