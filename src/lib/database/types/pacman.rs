@@ -10,7 +10,7 @@ use super::date_serde;
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Builder)]
 #[builder(pattern = "owned")]
-pub struct LocalPackage {
+pub struct PacmanEntry {
     /// file name
     #[serde(rename = "FILENAME")]
     pub file_name: String,
@@ -93,10 +93,10 @@ pub struct LocalPackage {
     pub checkdepends: Option<Vec<Depend>>,
 }
 
-impl From<PkgInfo> for LocalPackageBuilder {
+impl From<PkgInfo> for PacmanEntryBuilder {
     fn from(info: PkgInfo) -> Self {
         // missing fields? (e.g. checkdepends)
-        LocalPackageBuilder::default()
+        PacmanEntryBuilder::default()
             .name(info.pkg_name)
             .base(info.pkg_base)
             .version(Version(info.pkg_ver))

@@ -10,10 +10,10 @@ use sha2::{Digest, Sha256};
 use tar::Archive as TarArchive;
 
 use crate::error::{Error, Result};
-use crate::types::*;
 
 use super::compressor::ArchiveBuilder;
 use super::decompressor::ArchiveReader;
+use super::types::*;
 
 pub enum BuildTarget {
     Folder(PathBuf),
@@ -40,7 +40,7 @@ impl BuildTarget {
     }
 
     // append package to target
-    pub fn append_pkg(&mut self, desc: LocalPackage, files: Vec<String>) -> Result<()> {
+    pub fn append_pkg(&mut self, desc: PacmanEntry, files: Vec<String>) -> Result<()> {
         let dir_name =
             PathBuf::from_str(format!("{}-{}", desc.name, desc.version).as_str()).unwrap();
         let desc_content = archlinux_repo_parser::to_string(&desc).unwrap(); // TODO error handling
@@ -158,10 +158,10 @@ impl DBBuilder {
         let info = info.ok_or(Error::PackageError)?;
 
         // convert .PKGINFO to desc format
-        let desc_builder: LocalPackageBuilder = info.into();
+        let desc_builder: PacmanEntryBuilder = info.into();
         // TODO PGP
         // add remaining fields
-        let desc: LocalPackage = desc_builder
+        let desc: PacmanEntry = desc_builder
             .file_name(pkg.file_name().unwrap().to_string_lossy().to_string())
             .compressed_size(fs::metadata(pkg)?.len())
             .md5_sum(format!("{:?}", md5::compute(&raw)))
