@@ -29,6 +29,8 @@ jobs:
           components: rustfmt, clippy
           toolchain: nightly
           default: true
+      - name: Update System️️ 🛎️
+        run: pacman -Syu --noconfirm
       - uses: actions-rs/cargo@v1
         name: Check Code Format 🔧
         with:
