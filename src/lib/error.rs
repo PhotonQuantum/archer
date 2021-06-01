@@ -1,11 +1,22 @@
 use std::path::PathBuf;
 
 use online_scc_graph::Error as SCCGraphError;
+use rusoto_s3::{DeleteObjectError, GetObjectError, PutObjectError};
 use thiserror::Error;
 
 use crate::types::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, Error)]
+pub enum S3Error {
+    #[error("get error: {0}")]
+    GetError(#[from] rusoto_core::RusotoError<GetObjectError>),
+    #[error("put error: {0}")]
+    PutError(#[from] rusoto_core::RusotoError<PutObjectError>),
+    #[error("delete error: {0}")]
+    DeleteError(#[from] rusoto_core::RusotoError<DeleteObjectError>),
+}
 
 #[derive(Debug, Error)]
 pub enum StorageError {
@@ -17,6 +28,8 @@ pub enum StorageError {
     FileExists(PathBuf),
     #[error("file doesn't exist: {0}")]
     FileNotExists(PathBuf),
+    #[error("s3 error: {0}")]
+    S3Error(#[from] S3Error),
 }
 
 #[derive(Debug, Eq, PartialEq, Error)]

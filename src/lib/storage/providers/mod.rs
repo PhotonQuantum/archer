@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
@@ -6,7 +6,8 @@ use crate::error::StorageError;
 
 use super::types::*;
 
-mod filesystem;
+pub mod filesystem;
+pub mod s3;
 
 type Result<T> = std::result::Result<T, StorageError>;
 
@@ -14,9 +15,16 @@ type Result<T> = std::result::Result<T, StorageError>;
 pub trait StorageProvider {
     async fn get_file(&self, path: PathBuf) -> Result<ByteStream>;
     // async fn get_file_meta();
-    async fn put_file(&self, path: PathBuf, data: &mut ByteStream) -> Result<()>;
+    async fn put_file(&self, path: PathBuf, data: ByteStream) -> Result<()>;
     // fn set_file_meta();
     async fn delete_file(&self, path: PathBuf) -> Result<()>;
     // async fn list_files(prefix: String) -> ;
-    async fn rename_file(&self, old_path: PathBuf, new_path: PathBuf) -> Result<()>;
+}
+
+fn get_fullpath(base: &Path, path: &Path) -> Result<PathBuf> {
+    let fullpath = base.join(path);
+    if !fullpath.starts_with(base) {
+        return Err(StorageError::InvalidPath(path.to_path_buf()));
+    }
+    Ok(fullpath)
 }

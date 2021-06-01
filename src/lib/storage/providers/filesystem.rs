@@ -7,10 +7,10 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::StorageError;
-use crate::storage::providers::StorageProvider;
 use crate::storage::types::*;
 
 use super::Result;
+use super::{get_fullpath, StorageProvider};
 
 pub struct FSStorage {
     base: PathBuf,
@@ -47,20 +47,17 @@ async fn file_exists(path: &Path) -> bool {
 #[async_trait]
 impl StorageProvider for FSStorage {
     async fn get_file(&self, path: PathBuf) -> Result<ByteStream> {
-        let fullpath = self.base.join(&path);
-        if !fullpath.starts_with(&self.base) {
-            return Err(StorageError::InvalidPath(path));
-        }
+        let fullpath = get_fullpath(&*self.base, &*path)?;
 
         let mut src = File::open(&fullpath).await?;
         if src.metadata().await?.len() > self.memory_limit {
             let sync_dest = tempfile()?;
             let mut dest = File::from_std(sync_dest);
 
-            tokio::io::copy(&mut src, &mut dest).await?;
+            let length = tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
 
-            Ok(ByteStream::File(dest))
+            Ok(ByteStream::File { file: dest, length })
         } else {
             let mut buf = vec![];
             src.read_to_end(&mut buf).await?;
@@ -69,26 +66,20 @@ impl StorageProvider for FSStorage {
         }
     }
 
-    async fn put_file(&self, path: PathBuf, data: &mut ByteStream) -> Result<()> {
-        let fullpath = self.base.join(&path);
-        if !fullpath.starts_with(&self.base) {
-            return Err(StorageError::InvalidPath(path));
-        }
+    async fn put_file(&self, path: PathBuf, mut data: ByteStream) -> Result<()> {
+        let fullpath = get_fullpath(&*self.base, &*path)?;
         if path_exists(&fullpath).await {
             return Err(StorageError::FileExists(path));
         }
 
         let mut dest = File::create(&fullpath).await?;
-        tokio::io::copy(data, &mut dest).await?;
+        tokio::io::copy(&mut data, &mut dest).await?;
 
         Ok(())
     }
 
     async fn delete_file(&self, path: PathBuf) -> Result<()> {
-        let fullpath = self.base.join(&path);
-        if !fullpath.starts_with(&self.base) {
-            return Err(StorageError::InvalidPath(path));
-        }
+        let fullpath = get_fullpath(&*self.base, &*path)?;
         if !file_exists(&fullpath).await {
             return Err(StorageError::FileNotExists(path));
         }
@@ -96,25 +87,5 @@ impl StorageProvider for FSStorage {
         tokio::fs::remove_file(fullpath).await?;
 
         Ok(())
-    }
-
-    async fn rename_file(&self, old_path: PathBuf, new_path: PathBuf) -> Result<()> {
-        let old_fullpath = self.base.join(&old_path);
-        let new_fullpath = self.base.join(&new_path);
-        if !old_fullpath.starts_with(&self.base) {
-            return Err(StorageError::InvalidPath(old_fullpath));
-        }
-        if !new_fullpath.starts_with(&self.base) {
-            return Err(StorageError::InvalidPath(new_fullpath));
-        }
-        if !file_exists(&old_fullpath).await {
-            return Err(StorageError::FileNotExists(old_fullpath));
-        }
-        if file_exists(&new_fullpath).await {
-            return Err(StorageError::FileNotExists(new_fullpath));
-        }
-
-        tokio::fs::rename(old_fullpath, new_fullpath).await?;
-        todo!()
     }
 }

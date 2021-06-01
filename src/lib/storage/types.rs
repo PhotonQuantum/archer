@@ -1,16 +1,40 @@
 use std::fs::File;
 use std::io::Result as IOResult;
-use std::io::{Cursor, Error, SeekFrom};
+use std::io::{Cursor, SeekFrom};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use bytes::Bytes;
 use derive_more::From;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
+use futures::{ready, Stream};
+use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 
 #[derive(From)]
 pub enum ByteStream {
     Memory(Cursor<Vec<u8>>),
-    File(tokio::fs::File),
+    File { file: tokio::fs::File, length: u64 },
+}
+
+impl ByteStream {
+    pub fn size(&self) -> u64 {
+        match self {
+            ByteStream::Memory(v) => v.get_ref().len() as u64,
+            ByteStream::File { length, .. } => *length,
+        }
+    }
+}
+
+impl Stream for ByteStream {
+    type Item = IOResult<Bytes>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut inner_buf = [0; 8192];
+        let mut buf = ReadBuf::new(&mut inner_buf);
+        match ready!(self.poll_read(cx, &mut buf)) {
+            Ok(_) => Some(Ok(Bytes::from(Vec::from(buf.filled())))).into(),
+            Err(e) => Some(Err(e)).into(),
+        }
+    }
 }
 
 impl From<Vec<u8>> for ByteStream {
@@ -21,7 +45,11 @@ impl From<Vec<u8>> for ByteStream {
 
 impl From<std::fs::File> for ByteStream {
     fn from(f: File) -> Self {
-        Self::File(f.into())
+        let length = f.metadata().unwrap().len();
+        Self::File {
+            file: f.into(),
+            length,
+        }
     }
 }
 
@@ -33,7 +61,7 @@ impl AsyncRead for ByteStream {
     ) -> Poll<IOResult<()>> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).poll_read(cx, buf),
-            ByteStream::File(f) => Pin::new(f).poll_read(cx, buf),
+            ByteStream::File { file: f, .. } => Pin::new(f).poll_read(cx, buf),
         }
     }
 }
@@ -42,41 +70,14 @@ impl AsyncSeek for ByteStream {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> IOResult<()> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).start_seek(position),
-            ByteStream::File(f) => Pin::new(f).start_seek(position),
+            ByteStream::File { file: f, .. } => Pin::new(f).start_seek(position),
         }
     }
 
     fn poll_complete(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IOResult<u64>> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).poll_complete(cx),
-            ByteStream::File(f) => Pin::new(f).poll_complete(cx),
-        }
-    }
-}
-
-impl AsyncWrite for ByteStream {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, Error>> {
-        match self.get_mut() {
-            ByteStream::Memory(v) => Pin::new(v).poll_write(cx, buf),
-            ByteStream::File(f) => Pin::new(f).poll_write(cx, buf),
-        }
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        match self.get_mut() {
-            ByteStream::Memory(v) => Pin::new(v).poll_flush(cx),
-            ByteStream::File(f) => Pin::new(f).poll_flush(cx),
-        }
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        match self.get_mut() {
-            ByteStream::Memory(v) => Pin::new(v).poll_shutdown(cx),
-            ByteStream::File(f) => Pin::new(f).poll_flush(cx),
+            ByteStream::File { file: f, .. } => Pin::new(f).poll_complete(cx),
         }
     }
 }
