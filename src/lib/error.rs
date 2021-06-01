@@ -1,9 +1,23 @@
+use std::path::PathBuf;
+
 use online_scc_graph::Error as SCCGraphError;
 use thiserror::Error;
 
 use crate::types::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, Error)]
+pub enum StorageError {
+    #[error("invalid path: {0}")]
+    InvalidPath(PathBuf),
+    #[error("io error: {0}")]
+    IOError(#[from] std::io::Error),
+    #[error("file exists: {0}")]
+    FileExists(PathBuf),
+    #[error("file doesn't exist: {0}")]
+    FileNotExists(PathBuf),
+}
 
 #[derive(Debug, Eq, PartialEq, Error)]
 pub enum ParseError {
@@ -49,4 +63,6 @@ pub enum Error {
     ArchiveError,
     #[error("invalid package format")]
     PackageError,
+    #[error("storage error: {0}")]
+    StorageError(#[from] StorageError),
 }

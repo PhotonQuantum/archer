@@ -28,5 +28,6 @@ pub mod parser;
 pub mod prelude;
 pub mod repository;
 pub mod resolver;
+pub mod storage;
 pub mod types;
 mod utils;

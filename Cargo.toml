@@ -43,6 +43,10 @@ infer = "0.4"
 derive_builder = "0.10"
 md5 = "0.7"
 sha2 = "0.9"
+async-trait = "0.1"
+tokio = {version="1.6", features=["full"]}
+derive_more = "0.99"
+tempfile = "3.2"
 
 [dev-dependencies]
 rstest = "0.9"
