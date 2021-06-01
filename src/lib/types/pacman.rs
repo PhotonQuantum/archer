@@ -108,10 +108,13 @@ impl From<PacmanPackage<'_>> for OwnedPacmanPackage {
 
 impl From<&PacmanPackage<'_>> for OwnedPacmanPackage {
     fn from(pkg: &PacmanPackage) -> Self {
+        println!("converting {}", pkg.name());
         Self {
             name: pkg.name().to_owned(),
             should_ignore: pkg.should_ignore(),
-            filename: pkg.filename().to_owned(),
+            // TODO a workaround for upstream bug alpm #18
+            // filename: pkg.filename().to_owned(),
+            filename: String::new(),
             base: option_owned!(pkg.base()),
             version: Version(pkg.version().to_string()),
             origin: pkg.origin(),

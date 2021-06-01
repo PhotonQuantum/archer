@@ -16,7 +16,7 @@ path = "src/bin/main.rs"
 
 [dependencies]
 raur = {version="5.0", features=["blocking"]}
-alpm = "1"
+alpm = "2"
 anyhow = "1.0"
 thiserror = "1.0"
 configparser = "2.0"
