@@ -1,8 +1,10 @@
+use std::env;
 use std::io::{Seek, SeekFrom, Write};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use rstest::rstest;
-use tempfile::{tempdir, tempfile};
+use tempfile::{tempdir, tempfile, NamedTempFile};
 use testcontainers::images::generic::{GenericImage, WaitFor};
 use testcontainers::{clients, Docker, RunArgs};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -22,11 +24,18 @@ fn setup_file_bytestream() -> ByteStream {
     ByteStream::from(file)
 }
 
+fn setup_namedfile_bytestream() -> ByteStream {
+    let mut file = NamedTempFile::new().expect("unable to create temp file");
+    assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
+    file.seek(SeekFrom::Start(0)).expect("unable to rewind");
+    ByteStream::from(file)
+}
+
 #[rstest]
 #[case(setup_memory_bytestream())]
 #[case(setup_file_bytestream())]
 #[tokio::test]
-async fn test_bytestream(#[case] mut stream: ByteStream) {
+async fn test_bytestream_read(#[case] mut stream: ByteStream) {
     let mut read_buf = vec![];
     stream
         .read_to_end(&mut read_buf)
@@ -41,6 +50,23 @@ async fn test_bytestream(#[case] mut stream: ByteStream) {
         .await
         .expect("read failed");
     assert_eq!(read_buf, [2, 3, 4, 5], "content mismatch");
+}
+
+#[rstest]
+#[case(setup_memory_bytestream(), PathBuf::from("tests/persist.test.1"))] // in-memory stream
+#[case(setup_file_bytestream(), PathBuf::from("tests/persist.test.2"))] // bare file stream
+#[case(setup_namedfile_bytestream(), PathBuf::from("tests/persist.test.3"))] // namedfile to different fs (on my pc)
+#[case(setup_namedfile_bytestream(), env::temp_dir().join("archer_persist.test"))] // namedfile to same fs
+#[tokio::test]
+async fn test_bytestream_persist(#[case] stream: ByteStream, #[case] persist_path: PathBuf) {
+    drop(std::fs::remove_file(&persist_path));
+    stream
+        .into_file(&persist_path)
+        .await
+        .expect("unable to persist to file");
+    let data = std::fs::read(&persist_path).expect("unable to read file");
+    assert_eq!(data, [1, 2, 3, 4, 5], "content mismatch");
+    std::fs::remove_file(persist_path).expect("cleanup failed");
 }
 
 async fn must_provider_work(storage: impl StorageProvider, strict: bool) {

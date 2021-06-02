@@ -2,7 +2,7 @@ use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use tempfile::tempfile;
+use tempfile::NamedTempFile;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -55,14 +55,18 @@ impl StorageProvider for FSStorage {
 
         let mut src = File::open(&fullpath).await?;
         if src.metadata().await?.len() > self.memory_limit {
-            let sync_dest = tempfile()?;
-            let mut dest = File::from_std(sync_dest);
+            let sync_dest = NamedTempFile::new()?;
+            let mut dest = File::from_std(sync_dest.reopen()?);
 
             let length = tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
             dest.seek(SeekFrom::Start(0)).await?;
 
-            Ok(ByteStream::File { file: dest, length })
+            Ok(ByteStream::File {
+                file: dest,
+                temp_file: Some(sync_dest),
+                length,
+            })
         } else {
             let mut buf = vec![];
             src.read_to_end(&mut buf).await?;

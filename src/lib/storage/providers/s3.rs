@@ -8,7 +8,7 @@ use rusoto_s3::{
     DeleteObjectRequest, GetObjectError, GetObjectRequest, PutObjectRequest, S3Client,
     StreamingBody, S3,
 };
-use tempfile::tempfile;
+use tempfile::NamedTempFile;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -162,14 +162,18 @@ impl StorageProvider for S3Storage {
             .map(|l| l > self.memory_limit as i64)
             .unwrap_or(false)
         {
-            let sync_dest = tempfile()?;
-            let mut dest = File::from_std(sync_dest);
+            let sync_dest = NamedTempFile::new()?;
+            let mut dest = File::from_std(sync_dest.reopen()?);
 
             let length = tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
             dest.seek(SeekFrom::Start(0)).await?;
 
-            Ok(ByteStream::File { file: dest, length })
+            Ok(ByteStream::File {
+                file: dest,
+                temp_file: Some(sync_dest),
+                length,
+            })
         } else {
             let mut buf = vec![];
             src.read_to_end(&mut buf).await?;

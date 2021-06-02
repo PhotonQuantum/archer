@@ -1,18 +1,24 @@
-use std::fs::File;
 use std::io::Result as IOResult;
 use std::io::{Cursor, SeekFrom};
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
-use derive_more::From;
 use futures::{ready, Stream};
-use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
+use tempfile::NamedTempFile;
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt, ReadBuf};
 
-#[derive(Debug, From)]
+use crate::utils::is_same_fs;
+
+#[derive(Debug)]
 pub enum ByteStream {
     Memory(Cursor<Vec<u8>>),
-    File { file: tokio::fs::File, length: u64 },
+    File {
+        file: tokio::fs::File,
+        temp_file: Option<NamedTempFile>,
+        length: u64,
+    },
 }
 
 impl ByteStream {
@@ -25,6 +31,38 @@ impl ByteStream {
             ByteStream::Memory(v) => v.get_ref().len() as u64,
             ByteStream::File { length, .. } => *length,
         }
+    }
+
+    pub async fn into_file(self, path: impl AsRef<Path> + Clone) -> IOResult<()> {
+        use tokio::fs::File;
+        match self {
+            ByteStream::Memory(v) => {
+                let data = v.into_inner();
+                let mut dest = File::create(path).await?;
+                dest.write_all(&data).await?;
+                dest.flush().await?;
+            }
+            ByteStream::File {
+                temp_file: Some(file),
+                ..
+            } => {
+                if is_same_fs(file.path(), path.clone()) {
+                    file.persist(path)?;
+                } else {
+                    tokio::fs::copy(file.path(), path).await?;
+                }
+            }
+            ByteStream::File {
+                temp_file: None,
+                mut file,
+                ..
+            } => {
+                file.seek(SeekFrom::Start(0)).await?;
+                let mut dest = File::create(path).await?;
+                tokio::io::copy(&mut file, &mut dest).await?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -47,11 +85,23 @@ impl From<Vec<u8>> for ByteStream {
     }
 }
 
+impl From<NamedTempFile> for ByteStream {
+    fn from(f: NamedTempFile) -> Self {
+        let length = f.as_file().metadata().unwrap().len();
+        Self::File {
+            file: f.reopen().unwrap().into(),
+            temp_file: Some(f),
+            length,
+        }
+    }
+}
+
 impl From<std::fs::File> for ByteStream {
-    fn from(f: File) -> Self {
+    fn from(f: std::fs::File) -> Self {
         let length = f.metadata().unwrap().len();
         Self::File {
             file: f.into(),
+            temp_file: None,
             length,
         }
     }
