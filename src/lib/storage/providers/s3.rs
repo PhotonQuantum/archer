@@ -136,8 +136,8 @@ fn map_get_err(e: RusotoError<GetObjectError>) -> StorageError {
 
 #[async_trait]
 impl StorageProvider for S3Storage {
-    async fn get_file(&self, path: PathBuf) -> Result<ByteStream> {
-        let fullpath = get_fullpath(&self.base, &*path)?;
+    async fn get_file(&self, path: &Path) -> Result<ByteStream> {
+        let fullpath = get_fullpath(&self.base, path)?;
 
         let req = GetObjectRequest {
             bucket: self.bucket.clone(),
@@ -168,8 +168,8 @@ impl StorageProvider for S3Storage {
         }
     }
 
-    async fn put_file(&self, path: PathBuf, data: ByteStream) -> Result<()> {
-        let fullpath = get_fullpath(&self.base, &*path)?;
+    async fn put_file(&self, path: &Path, data: ByteStream) -> Result<()> {
+        let fullpath = get_fullpath(&self.base, path)?;
         let content_length = data.size();
 
         let req = PutObjectRequest {
@@ -189,8 +189,8 @@ impl StorageProvider for S3Storage {
         Ok(())
     }
 
-    async fn delete_file(&self, path: PathBuf) -> Result<()> {
-        let fullpath = get_fullpath(&self.base, &*path)?;
+    async fn delete_file(&self, path: &Path) -> Result<()> {
+        let fullpath = get_fullpath(&self.base, path)?;
 
         let req = DeleteObjectRequest {
             bucket: self.bucket.clone(),

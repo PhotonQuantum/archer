@@ -47,8 +47,11 @@ async fn file_exists(path: &Path) -> bool {
 
 #[async_trait]
 impl StorageProvider for FSStorage {
-    async fn get_file(&self, path: PathBuf) -> Result<ByteStream> {
-        let fullpath = get_fullpath(&*self.base, &*path)?;
+    async fn get_file(&self, path: &Path) -> Result<ByteStream> {
+        let fullpath = get_fullpath(&*self.base, path)?;
+        if !file_exists(&fullpath).await {
+            return Err(StorageError::FileNotExists(path.to_path_buf()));
+        }
 
         let mut src = File::open(&fullpath).await?;
         if src.metadata().await?.len() > self.memory_limit {
@@ -68,10 +71,10 @@ impl StorageProvider for FSStorage {
         }
     }
 
-    async fn put_file(&self, path: PathBuf, mut data: ByteStream) -> Result<()> {
-        let fullpath = get_fullpath(&*self.base, &*path)?;
+    async fn put_file(&self, path: &Path, mut data: ByteStream) -> Result<()> {
+        let fullpath = get_fullpath(&*self.base, path)?;
         if path_exists(&fullpath).await {
-            return Err(StorageError::FileExists(path));
+            return Err(StorageError::FileExists(path.to_path_buf()));
         }
 
         let mut dest = File::create(&fullpath).await?;
@@ -80,10 +83,10 @@ impl StorageProvider for FSStorage {
         Ok(())
     }
 
-    async fn delete_file(&self, path: PathBuf) -> Result<()> {
-        let fullpath = get_fullpath(&*self.base, &*path)?;
+    async fn delete_file(&self, path: &Path) -> Result<()> {
+        let fullpath = get_fullpath(&*self.base, path)?;
         if !file_exists(&fullpath).await {
-            return Err(StorageError::FileNotExists(path));
+            return Err(StorageError::FileNotExists(path.to_path_buf()));
         }
 
         tokio::fs::remove_file(fullpath).await?;
