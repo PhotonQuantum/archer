@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -10,7 +10,7 @@ use rusoto_s3::{
 };
 use tempfile::tempfile;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt};
 
 use crate::consts::STORAGE_MEMORY_LIMIT;
 use crate::error::{S3Error, StorageError};
@@ -157,6 +157,7 @@ impl StorageProvider for S3Storage {
 
             let length = tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
+            dest.seek(SeekFrom::Start(0)).await?;
 
             Ok(ByteStream::File { file: dest, length })
         } else {
