@@ -64,6 +64,10 @@ jobs:
           default: true
       - name: Populate Pacman Database️️ 🛎️
         run: pacman -Syu --noconfirm
+      - name: Prepare Docker 🚀
+        run: |
+          pacman -S docker --noconfirm
+          systemctl start docker
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:
