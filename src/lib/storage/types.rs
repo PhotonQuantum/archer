@@ -9,13 +9,17 @@ use derive_more::From;
 use futures::{ready, Stream};
 use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 
-#[derive(From)]
+#[derive(Debug, From)]
 pub enum ByteStream {
     Memory(Cursor<Vec<u8>>),
     File { file: tokio::fs::File, length: u64 },
 }
 
 impl ByteStream {
+    pub fn in_memory(&self) -> bool {
+        matches!(self, ByteStream::Memory(_))
+    }
+
     pub fn size(&self) -> u64 {
         match self {
             ByteStream::Memory(v) => v.get_ref().len() as u64,

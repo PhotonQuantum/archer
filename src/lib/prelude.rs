@@ -5,3 +5,4 @@ pub use crate::parser::{PacmanParser, GLOBAL_CONFIG};
 pub use crate::repository::*;
 pub use crate::resolver::{types::*, PlanBuilder, TreeResolver};
 pub use crate::types::*;
+pub use crate::storage::{StorageProvider, providers, types::*};
