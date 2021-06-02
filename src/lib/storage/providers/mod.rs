@@ -6,8 +6,11 @@ use crate::error::StorageError;
 
 use super::types::*;
 
-pub mod filesystem;
-pub mod s3;
+mod filesystem;
+mod s3;
+
+pub use filesystem::*;
+pub use s3::*;
 
 type Result<T> = std::result::Result<T, StorageError>;
 
