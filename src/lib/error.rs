@@ -16,6 +16,8 @@ pub enum S3Error {
     PutError(#[from] rusoto_core::RusotoError<PutObjectError>),
     #[error("delete error: {0}")]
     DeleteError(#[from] rusoto_core::RusotoError<DeleteObjectError>),
+    #[error("builder error: {0}")]
+    BuilderError(String),
 }
 
 #[derive(Debug, Error)]

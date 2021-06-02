@@ -11,6 +11,7 @@ use crate::storage::types::*;
 
 use super::Result;
 use super::{get_fullpath, StorageProvider};
+use crate::consts::STORAGE_MEMORY_LIMIT;
 
 pub struct FSStorage {
     base: PathBuf,
@@ -21,7 +22,7 @@ impl FSStorage {
     pub fn new(base: impl AsRef<Path>) -> Self {
         Self {
             base: base.as_ref().to_path_buf(),
-            memory_limit: 104857600, // 100 MB
+            memory_limit: STORAGE_MEMORY_LIMIT,
         }
     }
 
