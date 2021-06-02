@@ -10,7 +10,7 @@ use rusoto_s3::{
 };
 use tempfile::tempfile;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::consts::STORAGE_MEMORY_LIMIT;
 use crate::error::{S3Error, StorageError};
@@ -88,25 +88,25 @@ impl S3StorageBuilder {
             client,
             bucket: self
                 .bucket
-                .ok_or(S3Error::BuilderError(String::from("missing bucket field")))?,
-            base: self.base.unwrap_or(PathBuf::new()),
+                .ok_or_else(|| S3Error::BuilderError(String::from("missing bucket field")))?,
+            base: self.base.unwrap_or_default(),
             memory_limit: self.memory_limit.unwrap_or(STORAGE_MEMORY_LIMIT),
         })
     }
 
     pub fn build(self) -> Result<S3Storage> {
-        let (key, secret) = self.credential.ok_or(S3Error::BuilderError(String::from(
-            "missing credential field",
-        )))?;
+        let (key, secret) = self
+            .credential
+            .ok_or_else(|| S3Error::BuilderError(String::from("missing credential field")))?;
         let name = self
             .name
-            .ok_or(S3Error::BuilderError(String::from("missing name field")))?;
-        let endpoint = self.endpoint.ok_or(S3Error::BuilderError(String::from(
-            "missing endpoint field",
-        )))?;
+            .ok_or_else(|| S3Error::BuilderError(String::from("missing name field")))?;
+        let endpoint = self
+            .endpoint
+            .ok_or_else(|| S3Error::BuilderError(String::from("missing endpoint field")))?;
         let bucket = self
             .bucket
-            .ok_or(S3Error::BuilderError(String::from("missing bucket field")))?;
+            .ok_or_else(|| S3Error::BuilderError(String::from("missing bucket field")))?;
 
         let credential = StaticProvider::new_minimal(key, secret);
         let http_client = rusoto_core::HttpClient::new().unwrap();
@@ -118,7 +118,7 @@ impl S3StorageBuilder {
         Ok(S3Storage {
             client: s3_client,
             bucket,
-            base: self.base.unwrap_or(PathBuf::new()),
+            base: self.base.unwrap_or_default(),
             memory_limit: self.memory_limit.unwrap_or(STORAGE_MEMORY_LIMIT),
         })
     }

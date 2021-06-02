@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use tempfile::tempfile;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
+use crate::consts::STORAGE_MEMORY_LIMIT;
 use crate::error::StorageError;
 use crate::storage::types::*;
 
 use super::Result;
 use super::{get_fullpath, StorageProvider};
-use crate::consts::STORAGE_MEMORY_LIMIT;
 
 pub struct FSStorage {
     base: PathBuf,

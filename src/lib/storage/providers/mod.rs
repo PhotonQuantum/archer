@@ -2,15 +2,15 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
+pub use filesystem::*;
+pub use s3::*;
+
 use crate::error::StorageError;
 
 use super::types::*;
 
 mod filesystem;
 mod s3;
-
-pub use filesystem::*;
-pub use s3::*;
 
 type Result<T> = std::result::Result<T, StorageError>;
 
