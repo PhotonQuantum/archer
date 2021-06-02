@@ -134,6 +134,16 @@ fn map_get_err(e: RusotoError<GetObjectError>) -> StorageError {
     }
 }
 
+async fn guess_mime(stream: &mut ByteStream) -> Option<&str> {
+    let mut buf = [0; 512];
+    let bytes = stream.read(&mut buf).await.unwrap();
+    stream
+        .seek(SeekFrom::Current(-(bytes as i64)))
+        .await
+        .unwrap();
+    infer::get(&buf).map(|mime| mime.mime_type())
+}
+
 #[async_trait]
 impl StorageProvider for S3Storage {
     async fn get_file(&self, path: &Path) -> Result<ByteStream> {
@@ -168,15 +178,16 @@ impl StorageProvider for S3Storage {
         }
     }
 
-    async fn put_file(&self, path: &Path, data: ByteStream) -> Result<()> {
+    async fn put_file(&self, path: &Path, mut data: ByteStream) -> Result<()> {
         let fullpath = get_fullpath(&self.base, path)?;
         let content_length = data.size();
+        let content_type = guess_mime(&mut data).await.map(ToString::to_string);
 
         let req = PutObjectRequest {
             body: Some(StreamingBody::new(data)),
             bucket: self.bucket.clone(),
             content_length: Some(content_length as i64),
-            content_type: None, // TODO read from meta
+            content_type,
             key: fullpath.to_str().unwrap().to_string(),
             ..Default::default()
         };
