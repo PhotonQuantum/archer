@@ -46,6 +46,15 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     container: archlinux:base-devel
+    env:
+      S3_ENDPOINT: http://s3_mock:9090
+    services:
+      s3_mock:
+        image: adobe/s3mock
+        ports:
+          - 9090:9090
+        env:
+          initialBuckets: test-bucket
     steps:
       - uses: actions/checkout@v2
         name: Checkout 🛎️
@@ -64,10 +73,6 @@ jobs:
           default: true
       - name: Populate Pacman Database️️ 🛎️
         run: pacman -Syu --noconfirm
-      - name: Prepare Docker 🚀
-        run: |
-          pacman -S docker --noconfirm
-          systemctl start docker
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:

@@ -120,21 +120,32 @@ async fn test_fs_provider() {
 
 #[tokio::test]
 async fn test_s3_provider() {
-    let client = Arc::new(clients::Cli::default());
-    let image = GenericImage::new("adobe/s3mock")
-        .with_env_var("initialBuckets", "test-bucket")
-        .with_wait_for(WaitFor::message_on_stdout("Started S3MockApplication"));
-    let args = RunArgs::default().with_mapped_port((9090, 9090));
-    let _container = client.run_with_args(image, args);
-
     let s3_storage = S3StorageBuilder::new()
         .with_name("mock-s3")
-        .with_endpoint("http://localhost:9090")
         .with_bucket("test-bucket")
         .with_credential("", "")
-        .with_memory_limit(5)
-        .build()
-        .expect("unable to build s3");
+        .with_memory_limit(5);
 
-    must_provider_work(s3_storage, false).await
+    if let Some(endpoint) = option_env!("S3_ENDPOINT") {
+        let s3_storage = s3_storage
+            .with_endpoint(endpoint)
+            .build()
+            .expect("unable to build s3 storage");
+
+        must_provider_work(s3_storage, false).await
+    } else {
+        let client = Arc::new(clients::Cli::default());
+        let image = GenericImage::new("adobe/s3mock")
+            .with_env_var("initialBuckets", "test-bucket")
+            .with_wait_for(WaitFor::message_on_stdout("Started S3MockApplication"));
+        let args = RunArgs::default().with_mapped_port((9090, 9090));
+        let _container = client.run_with_args(image, args);
+
+        let s3_storage = s3_storage
+            .with_endpoint("http://localhost:9090")
+            .build()
+            .expect("unable to build s3 storage");
+
+        must_provider_work(s3_storage, false).await
+    }
 }
