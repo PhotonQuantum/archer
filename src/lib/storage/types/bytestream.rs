@@ -1,7 +1,9 @@
 use std::io::Result as IOResult;
-use std::io::{Cursor, SeekFrom};
+use std::io::{Cursor, Seek, SeekFrom};
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
@@ -16,7 +18,7 @@ pub enum ByteStream {
     Memory(Cursor<Vec<u8>>),
     File {
         file: tokio::fs::File,
-        temp_file: Option<NamedTempFile>,
+        temp_file: Option<Arc<NamedTempFile>>,
         length: u64,
     },
 }
@@ -47,8 +49,18 @@ impl ByteStream {
                 ..
             } => {
                 if is_same_fs(file.path(), path.clone()) {
-                    file.persist(path)?;
+                    match Arc::try_unwrap(file) {
+                        Ok(file) => {
+                            // this stream is the only owner of the file, persist
+                            file.persist(path)?;
+                        }
+                        Err(file) => {
+                            // this stream isn't the only owner, copy file
+                            tokio::fs::copy(file.path(), path).await?;
+                        }
+                    }
                 } else {
+                    // we can't persist tempfile across filesystems
                     tokio::fs::copy(file.path(), path).await?;
                 }
             }
@@ -63,6 +75,39 @@ impl ByteStream {
             }
         }
         Ok(())
+    }
+}
+
+impl Clone for ByteStream {
+    // NOTE
+    // the cloned bytestream will have its pointer rewound
+    fn clone(&self) -> Self {
+        match self {
+            ByteStream::Memory(v) => ByteStream::Memory(Cursor::new(v.clone().into_inner())), // TODO use custom cursor to avoid this clone
+            ByteStream::File {
+                temp_file: Some(temp_file),
+                length,
+                ..
+            } => ByteStream::File {
+                file: tokio::fs::File::from_std(temp_file.reopen().unwrap()),
+                temp_file: Some(temp_file.clone()),
+                length: *length,
+            },
+            ByteStream::File {
+                temp_file: None, ..
+            } => {
+                // NOTE
+                // It's possible to support cloning arbitrary file-backed bytestream by
+                // 1. create another handle on the same fd
+                // 2. record its current pos (by seek(current))
+                // 3. rewind it
+                // 4. copy it to another temp file
+                // 5. create the new stream on the newly created temp file
+                // 6. seek the original file to the previously saved pos
+                // However, it's unsafe and won't sync well.
+                panic!("unsupported")
+            }
+        }
     }
 }
 
@@ -90,7 +135,7 @@ impl From<NamedTempFile> for ByteStream {
         let length = f.as_file().metadata().unwrap().len();
         Self::File {
             file: f.reopen().unwrap().into(),
-            temp_file: Some(f),
+            temp_file: Some(Arc::new(f)),
             length,
         }
     }

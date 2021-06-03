@@ -59,6 +59,27 @@ async fn test_bytestream_read(#[case] mut stream: ByteStream) {
 }
 
 #[rstest]
+#[case(setup_namedfile_bytestream())]
+#[case(setup_memory_bytestream())]
+#[tokio::test]
+async fn test_bytestream_clone(#[case] mut stream: ByteStream) {
+    let mut read_buf = vec![];
+    stream
+        .read_to_end(&mut read_buf)
+        .await
+        .expect("read failed");
+    assert_eq!(read_buf, [1, 2, 3, 4, 5], "content mismatch");
+
+    let mut cloned_stream: ByteStream = stream.clone();
+    let mut read_buf = vec![];
+    cloned_stream
+        .read_to_end(&mut read_buf)
+        .await
+        .expect("read failed");
+    assert_eq!(read_buf, [1, 2, 3, 4, 5], "content mismatch");
+}
+
+#[rstest]
 #[case(setup_memory_bytestream(), PathBuf::from("tests/persist.test.1"))] // in-memory stream
 #[case(setup_file_bytestream(), PathBuf::from("tests/persist.test.2"))] // bare file stream
 #[case(setup_namedfile_bytestream(), PathBuf::from("tests/persist.test.3"))] // namedfile to different fs (on my pc)

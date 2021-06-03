@@ -1,5 +1,6 @@
 use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use tempfile::NamedTempFile;
@@ -64,7 +65,7 @@ impl StorageProvider for FSStorage {
 
             Ok(ByteStream::File {
                 file: dest,
-                temp_file: Some(sync_dest),
+                temp_file: Some(Arc::new(sync_dest)),
                 length,
             })
         } else {
