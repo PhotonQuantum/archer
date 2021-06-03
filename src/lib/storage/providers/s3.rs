@@ -1,6 +1,5 @@
 use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use rusoto_core::credential::StaticProvider;
@@ -166,15 +165,10 @@ impl StorageProvider for S3Storage {
             let sync_dest = NamedTempFile::new()?;
             let mut dest = File::from_std(sync_dest.reopen()?);
 
-            let length = tokio::io::copy(&mut src, &mut dest).await?;
+            tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
-            dest.seek(SeekFrom::Start(0)).await?;
 
-            Ok(ByteStream::File {
-                file: dest,
-                temp_file: Some(Arc::new(sync_dest)),
-                length,
-            })
+            Ok(ByteStream::from(sync_dest))
         } else {
             let mut buf = vec![];
             src.read_to_end(&mut buf).await?;

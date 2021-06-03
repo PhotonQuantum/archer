@@ -1,6 +1,6 @@
 use std::io::Result as IOResult;
 use std::io::{Cursor, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -12,17 +12,34 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt, ReadBuf};
 
 use crate::utils::is_same_fs;
 
+#[derive(Debug, Clone)]
+pub enum FileObject {
+    Unnamed,
+    Path(PathBuf), // it's assumed that the file exists when object is alive
+    NamedTemp(Arc<NamedTempFile>),
+}
+
 #[derive(Debug)]
 pub enum ByteStream {
     Memory(Cursor<Vec<u8>>),
     File {
-        file: tokio::fs::File,
-        temp_file: Option<Arc<NamedTempFile>>,
+        handle: tokio::fs::File,
+        object_type: FileObject,
         length: u64,
     },
 }
 
 impl ByteStream {
+    pub fn from_path(path: impl AsRef<Path>) -> IOResult<Self> {
+        let handle = std::fs::File::open(path.as_ref())?;
+        let length = handle.metadata()?.len();
+        Ok(Self::File {
+            handle: tokio::fs::File::from_std(handle),
+            object_type: FileObject::Path(path.as_ref().to_path_buf()),
+            length,
+        })
+    }
+
     pub fn in_memory(&self) -> bool {
         matches!(self, ByteStream::Memory(_))
     }
@@ -44,7 +61,7 @@ impl ByteStream {
                 dest.flush().await?;
             }
             ByteStream::File {
-                temp_file: Some(file),
+                object_type: FileObject::NamedTemp(file),
                 ..
             } => {
                 if is_same_fs(file.path(), path.clone()) {
@@ -64,9 +81,7 @@ impl ByteStream {
                 }
             }
             ByteStream::File {
-                temp_file: None,
-                mut file,
-                ..
+                handle: mut file, ..
             } => {
                 file.seek(SeekFrom::Start(0)).await?;
                 let mut dest = File::create(path).await?;
@@ -84,19 +99,29 @@ impl Clone for ByteStream {
         match self {
             ByteStream::Memory(v) => ByteStream::Memory(Cursor::new(v.clone().into_inner())), // TODO use custom cursor to avoid this clone
             ByteStream::File {
-                temp_file: Some(temp_file),
+                object_type: FileObject::NamedTemp(temp_file),
                 length,
                 ..
             } => ByteStream::File {
-                file: tokio::fs::File::from_std(temp_file.reopen().unwrap()),
-                temp_file: Some(temp_file.clone()),
+                handle: tokio::fs::File::from_std(temp_file.reopen().unwrap()),
+                object_type: FileObject::NamedTemp(temp_file.clone()),
                 length: *length,
             },
             ByteStream::File {
-                temp_file: None, ..
+                object_type: FileObject::Path(file_path),
+                ..
+            } => {
+                let mut src = std::fs::File::open(file_path).unwrap();
+                let mut new_file = NamedTempFile::new().unwrap();
+                std::io::copy(&mut src, &mut new_file).unwrap();
+                ByteStream::from(new_file)
+            }
+            ByteStream::File {
+                object_type: FileObject::Unnamed,
+                ..
             } => {
                 // NOTE
-                // It's possible to support cloning arbitrary file-backed bytestream by
+                // It's possible to support cloning unnamed file backed bytestream by
                 // 1. create another handle on the same fd
                 // 2. record its current pos (by seek(current))
                 // 3. rewind it
@@ -133,8 +158,8 @@ impl From<NamedTempFile> for ByteStream {
     fn from(f: NamedTempFile) -> Self {
         let length = f.as_file().metadata().unwrap().len();
         Self::File {
-            file: f.reopen().unwrap().into(),
-            temp_file: Some(Arc::new(f)),
+            handle: f.reopen().unwrap().into(),
+            object_type: FileObject::NamedTemp(Arc::new(f)),
             length,
         }
     }
@@ -144,8 +169,8 @@ impl From<std::fs::File> for ByteStream {
     fn from(f: std::fs::File) -> Self {
         let length = f.metadata().unwrap().len();
         Self::File {
-            file: f.into(),
-            temp_file: None,
+            handle: f.into(),
+            object_type: FileObject::Unnamed,
             length,
         }
     }
@@ -159,7 +184,7 @@ impl AsyncRead for ByteStream {
     ) -> Poll<IOResult<()>> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).poll_read(cx, buf),
-            ByteStream::File { file: f, .. } => Pin::new(f).poll_read(cx, buf),
+            ByteStream::File { handle: f, .. } => Pin::new(f).poll_read(cx, buf),
         }
     }
 }
@@ -168,14 +193,14 @@ impl AsyncSeek for ByteStream {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> IOResult<()> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).start_seek(position),
-            ByteStream::File { file: f, .. } => Pin::new(f).start_seek(position),
+            ByteStream::File { handle: f, .. } => Pin::new(f).start_seek(position),
         }
     }
 
     fn poll_complete(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IOResult<u64>> {
         match self.get_mut() {
             ByteStream::Memory(v) => Pin::new(v).poll_complete(cx),
-            ByteStream::File { file: f, .. } => Pin::new(f).poll_complete(cx),
+            ByteStream::File { handle: f, .. } => Pin::new(f).poll_complete(cx),
         }
     }
 }

@@ -23,23 +23,32 @@ fn setup_memory_bytestream() -> ByteStream {
     ByteStream::from(data)
 }
 
-fn setup_file_bytestream() -> ByteStream {
+fn setup_unnamedfile_bytestream() -> ByteStream {
     let mut file = tempfile().expect("unable to create temp file");
     assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
     file.seek(SeekFrom::Start(0)).expect("unable to rewind");
     ByteStream::from(file)
 }
 
-fn setup_namedfile_bytestream() -> ByteStream {
+fn setup_tempfile_bytestream() -> ByteStream {
     let mut file = NamedTempFile::new().expect("unable to create temp file");
     assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
     file.seek(SeekFrom::Start(0)).expect("unable to rewind");
     ByteStream::from(file)
 }
 
+fn setup_pathfile_bytestream() -> ByteStream {
+    let mut file = std::fs::File::create("tests/stream.test").expect("unable to create file");
+    assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
+    file.seek(SeekFrom::Start(0)).expect("unable to rewind");
+    ByteStream::from_path("tests/stream.test").expect("unable to create stream")
+}
+
 #[rstest]
 #[case(setup_memory_bytestream())]
-#[case(setup_file_bytestream())]
+#[case(setup_unnamedfile_bytestream())]
+#[case(setup_tempfile_bytestream())]
+#[case(setup_pathfile_bytestream())]
 #[tokio::test]
 async fn test_bytestream_read(#[case] mut stream: ByteStream) {
     let mut read_buf = vec![];
@@ -59,8 +68,9 @@ async fn test_bytestream_read(#[case] mut stream: ByteStream) {
 }
 
 #[rstest]
-#[case(setup_namedfile_bytestream())]
 #[case(setup_memory_bytestream())]
+#[case(setup_tempfile_bytestream())]
+#[case(setup_pathfile_bytestream())]
 #[tokio::test]
 async fn test_bytestream_clone(#[case] mut stream: ByteStream) {
     let mut read_buf = vec![];
@@ -81,9 +91,10 @@ async fn test_bytestream_clone(#[case] mut stream: ByteStream) {
 
 #[rstest]
 #[case(setup_memory_bytestream(), PathBuf::from("tests/persist.test.1"))] // in-memory stream
-#[case(setup_file_bytestream(), PathBuf::from("tests/persist.test.2"))] // bare file stream
-#[case(setup_namedfile_bytestream(), PathBuf::from("tests/persist.test.3"))] // namedfile to different fs (on my pc)
-#[case(setup_namedfile_bytestream(), env::temp_dir().join("archer_persist.test"))] // namedfile to same fs
+#[case(setup_unnamedfile_bytestream(), PathBuf::from("tests/persist.test.2"))] // bare file stream
+#[case(setup_tempfile_bytestream(), PathBuf::from("tests/persist.test.3"))] // namedfile to different fs (on my pc)
+#[case(setup_tempfile_bytestream(), env::temp_dir().join("archer_persist.test"))] // namedfile to same fs
+#[case(setup_pathfile_bytestream(), PathBuf::from("tests/persist.test.4"))] // path backed file
 #[tokio::test]
 async fn test_bytestream_persist(#[case] stream: ByteStream, #[case] persist_path: PathBuf) {
     drop(std::fs::remove_file(&persist_path));
