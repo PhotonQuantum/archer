@@ -1,8 +1,12 @@
 use std::env;
 use std::io::{Seek, SeekFrom, Write};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use async_trait::async_trait;
+use itertools::Itertools;
+use rand::prelude::*;
 use rstest::rstest;
 use tempfile::{tempdir, tempfile, NamedTempFile};
 use testcontainers::images::generic::{GenericImage, WaitFor};
@@ -11,6 +15,8 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::storage::providers::{FSStorage, S3StorageBuilder};
 use crate::tests::*;
+
+use super::transaction::*;
 
 fn setup_memory_bytestream() -> ByteStream {
     let data = vec![1, 2, 3, 4, 5];
@@ -174,4 +180,100 @@ async fn test_s3_provider() {
 
         must_provider_work(s3_storage, false).await
     }
+}
+
+#[derive(Default)]
+struct MockProvider {
+    seq: Mutex<Vec<TxnAction>>,
+}
+
+impl MockProvider {
+    fn assert_ord(&self, path_1: &Path, path_2: &Path) {
+        let pos_1 = self
+            .seq
+            .lock()
+            .unwrap()
+            .iter()
+            .find_position(|a| match a {
+                TxnAction::Put(p, _) => p == path_1,
+                TxnAction::Delete(p) => p == path_1,
+                TxnAction::Barrier => unreachable!(),
+            })
+            .unwrap()
+            .0;
+        let pos_2 = self
+            .seq
+            .lock()
+            .unwrap()
+            .iter()
+            .find_position(|a| match a {
+                TxnAction::Put(p, _) => p == path_2,
+                TxnAction::Delete(p) => p == path_2,
+                TxnAction::Barrier => unreachable!(),
+            })
+            .unwrap()
+            .0;
+        assert!(pos_1 < pos_2, "ord assertion failed");
+    }
+}
+
+#[async_trait]
+impl StorageProvider for MockProvider {
+    async fn get_file(&self, path: &Path) -> Result<ByteStream> {
+        panic!("get_file not supported")
+    }
+
+    async fn put_file(&self, path: &Path, data: ByteStream) -> Result<()> {
+        tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
+        self.seq
+            .lock()
+            .unwrap()
+            .push(TxnAction::Put(path.to_path_buf(), data));
+        tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
+        Ok(())
+    }
+
+    async fn delete_file(&self, path: &Path) -> Result<()> {
+        tokio::time::sleep(Duration::from_millis((random::<f32>() * 20.) as u64)).await;
+        self.seq
+            .lock()
+            .unwrap()
+            .push(TxnAction::Delete(path.to_path_buf()));
+        tokio::time::sleep(Duration::from_millis((random::<f32>() * 20.) as u64)).await;
+        Ok(())
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 6)]
+async fn must_txn() {
+    let mut txn = Txn::new();
+    txn.add(TxnAction::Put("1".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Put("2".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Put("3".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Delete("4".into()));
+    txn.add(TxnAction::Put("5".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Put("6".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Barrier);
+    txn.add(TxnAction::Delete("7".into()));
+    txn.add(TxnAction::Put("8".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Delete("9".into()));
+    txn.add(TxnAction::Put("10".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Delete("11".into()));
+    txn.add(TxnAction::Put("12".into(), setup_memory_bytestream()));
+    txn.add(TxnAction::Delete("13".into()));
+    txn.add(TxnAction::Barrier);
+    txn.add(TxnAction::Delete("14".into()));
+    txn.add(TxnAction::Delete("15".into()));
+
+    let mock_provider = MockProvider::default();
+    txn.commit(&mock_provider).await.expect("unable to commit");
+
+    let ord_1 = (1..=6).cartesian_product(7..=13);
+    ord_1.into_iter().for_each(|(x, y)| {
+        mock_provider.assert_ord(&PathBuf::from(x.to_string()), &PathBuf::from(y.to_string()))
+    });
+    let ord_2 = (7..=13).cartesian_product(14..=15);
+    ord_2.into_iter().for_each(|(x, y)| {
+        mock_provider.assert_ord(&PathBuf::from(x.to_string()), &PathBuf::from(y.to_string()))
+    });
 }

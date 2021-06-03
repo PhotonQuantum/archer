@@ -12,8 +12,6 @@ use super::types::*;
 mod filesystem;
 mod s3;
 
-type Result<T> = std::result::Result<T, StorageError>;
-
 #[async_trait]
 pub trait StorageProvider {
     async fn get_file(&self, path: &Path) -> Result<ByteStream>;
