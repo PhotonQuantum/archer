@@ -1,6 +1,5 @@
 use std::io::Result as IOResult;
-use std::io::{Cursor, Seek, SeekFrom};
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::io::{Cursor, SeekFrom};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
