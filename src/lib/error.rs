@@ -32,6 +32,8 @@ pub enum StorageError {
     FileNotExists(PathBuf),
     #[error("s3 error: {0}")]
     S3Error(#[from] S3Error),
+    #[error("json error: {0}")]
+    JSONError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Eq, PartialEq, Error)]

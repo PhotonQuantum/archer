@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -15,6 +15,12 @@ pub struct PackageMeta {
     pub name: String,
     pub version: Version,
     pub checksum: u64,
+}
+
+impl AsRef<PackageMeta> for &PackageMeta {
+    fn as_ref(&self) -> &PackageMeta {
+        self
+    }
 }
 
 impl PackageMeta {
@@ -35,6 +41,9 @@ pub struct LocalPackageUnit {
 }
 
 impl LocalPackageUnit {
+    pub fn new(meta: impl AsRef<PackageMeta>, path: impl AsRef<Path>) -> Self {
+        Self {meta: meta.as_ref().clone(), path: path.as_ref().to_path_buf()}
+    }
     fn get_ext(&self) -> &str {
         RE.find(self.path.file_name().unwrap().to_str().unwrap())
             .unwrap()

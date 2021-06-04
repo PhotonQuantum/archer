@@ -251,7 +251,7 @@ impl MockProvider {
 
 #[async_trait]
 impl StorageProvider for MockProvider {
-    async fn get_file(&self, path: &Path) -> Result<ByteStream> {
+    async fn get_file(&self, _path: &Path) -> Result<ByteStream> {
         panic!("get_file not supported")
     }
 

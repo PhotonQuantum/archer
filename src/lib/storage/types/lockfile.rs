@@ -12,12 +12,11 @@ pub struct LockFile {
     packages: HashSet<RemotePackageUnit>,
 }
 
-impl<T: AsRef<MetaKeyMap>> From<T> for LockFile {
-    fn from(m: T) -> Self {
+impl From<&MetaKeyMap> for LockFile {
+    fn from(m: &MetaKeyMap) -> Self {
         Self {
             version: LOCK_FILE_VERSION,
             packages: m
-                .as_ref()
                 .iter()
                 .map(|(meta, key)| RemotePackageUnit {
                     meta: meta.clone(),
