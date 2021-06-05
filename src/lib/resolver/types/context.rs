@@ -167,7 +167,7 @@ impl Context {
             self.packages.insert(name, pkg.clone());
             self.graph.add_node(pkg.clone());
             let cycle = reasons.iter().fold(None, |acc, reason| {
-                let eff = self.graph.insert(&reason, &pkg).unwrap();
+                let eff = self.graph.insert(reason, &pkg).unwrap();
                 if acc.is_none() {
                     if let EdgeEffect::NewEdge(Some(cycle)) = eff {
                         Some(cycle)

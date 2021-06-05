@@ -1,7 +1,6 @@
 #![deny(clippy::all)]
 #![allow(
     clippy::module_name_repetitions,
-    clippy::pub_enum_variant_names,
     clippy::wildcard_imports,
     clippy::default_trait_access
 )]
