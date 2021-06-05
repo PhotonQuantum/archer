@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use crate::storage::StorageProvider;
 use crate::storage::transaction::{Txn, TxnAction};
+use crate::storage::StorageProvider;
 
 use super::types::*;
 
@@ -15,7 +15,7 @@ pub struct PackagePool<T: StorageProvider> {
     // meta->key
     local_map: Mutex<MetaKeyMap>,
     // meta->filename
-    stage_map: MetaKeyMap,  // meta->path
+    stage_map: MetaKeyMap, // meta->path
 }
 
 impl<T: StorageProvider> PackagePool<T> {
@@ -25,7 +25,7 @@ impl<T: StorageProvider> PackagePool<T> {
             local,
             remote_map: Mutex::new(Default::default()),
             local_map: Mutex::new(Default::default()),
-            stage_map: Default::default()
+            stage_map: Default::default(),
         }
     }
 
@@ -44,10 +44,7 @@ impl<T: StorageProvider> PackagePool<T> {
             local_map.insert(meta.clone(), key.clone());
 
             // put package transaction
-            txn.add(TxnAction::Put(
-                key.clone(),
-                ByteStream::from_path(path)?,
-            ));
+            txn.add(TxnAction::Put(key.clone(), ByteStream::from_path(path)?));
 
             // pre-cache package
             // file will be copied into dest before txn is committed
@@ -60,10 +57,13 @@ impl<T: StorageProvider> PackagePool<T> {
 
         // generate & put lock file
         txn.add(TxnAction::Delete(PathBuf::from("index.lock")));
-        txn.add(TxnAction::Barrier);    // ensure order (s3 doesn't support atomic renaming, so...)
+        txn.add(TxnAction::Barrier); // ensure order (s3 doesn't support atomic renaming, so...)
         let new_lock_file = LockFile::from(&*remote_map);
         let lockfile_data = serde_json::to_vec(&new_lock_file)?;
-        txn.add(TxnAction::Put(PathBuf::from("index.lock"), ByteStream::from(lockfile_data)));
+        txn.add(TxnAction::Put(
+            PathBuf::from("index.lock"),
+            ByteStream::from(lockfile_data),
+        ));
 
         // commit transaction
         txn.commit(&self.remote).await?;
@@ -89,7 +89,7 @@ impl<T: StorageProvider> PackagePool<T> {
         let maybe_local_filename = self.local_map.lock().unwrap().get(meta).cloned();
         if let Some(filename) = maybe_local_filename {
             // exists in local cache
-            return Ok(Some(self.local.join(filename)))
+            return Ok(Some(self.local.join(filename)));
         }
 
         let maybe_remote_key = self.remote_map.lock().unwrap().get(meta).cloned();
@@ -104,15 +104,15 @@ impl<T: StorageProvider> PackagePool<T> {
                 // save the file into local cache and return its path
                 // NOTE
                 // assume that remote file is at root directory
-                let local_path = self.local.join(&key);  // take its remote key as cache name
+                let local_path = self.local.join(&key); // take its remote key as cache name
                 data.into_file(&local_path).await?;
 
-                local_map.insert(meta.clone(), key);   // update local map
+                local_map.insert(meta.clone(), key); // update local map
 
                 Ok(Some(local_path))
             }
         } else {
             Ok(None)
-        }
+        };
     }
 }
