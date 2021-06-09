@@ -167,21 +167,21 @@ fn is_pkg_exists(pkgs: &[&Package], pkg: &PackageAssertion) -> bool {
 }
 
 pub enum PkgsAssertion {
-    AssertOrder(Vec<PackageAssertion>),
-    AssertExist(PackageAssertion),
-    AssertNotExist(PackageAssertion),
+    Order(Vec<PackageAssertion>),
+    Exist(PackageAssertion),
+    NotExist(PackageAssertion),
 }
 
 impl PkgsAssertion {
     pub fn assert(&self, pkgs: &[&Package]) {
         match self {
-            PkgsAssertion::AssertOrder(s) => must_pkg_order(pkgs, &s),
-            PkgsAssertion::AssertExist(pkg) => {
+            PkgsAssertion::Order(s) => must_pkg_order(pkgs, s),
+            PkgsAssertion::Exist(pkg) => {
                 let info_prefix = format!("AssertExist({})", pkg);
                 println!("{}", info_prefix);
                 assert!(is_pkg_exists(pkgs, pkg), "{} assertion failed", info_prefix)
             }
-            PkgsAssertion::AssertNotExist(pkg) => {
+            PkgsAssertion::NotExist(pkg) => {
                 let info_prefix = format!("AssertNotExist({})", pkg);
                 println!("{}", info_prefix);
                 assert!(
@@ -197,12 +197,12 @@ impl PkgsAssertion {
 #[macro_export]
 macro_rules! asrt {
     ($s: literal < $($ss: literal)< *) => {
-        PkgsAssertion::AssertOrder(vec![assert_pkg!($s), $(assert_pkg!($ss)),*])
+        PkgsAssertion::Order(vec![assert_pkg!($s), $(assert_pkg!($ss)),*])
     };
     ($s: literal) => {
-        PkgsAssertion::AssertExist(assert_pkg!($s))
+        PkgsAssertion::Exist(assert_pkg!($s))
     };
     (!$s: literal) => {
-        PkgsAssertion::AssertNotExist(assert_pkg!($s))
+        PkgsAssertion::NotExist(assert_pkg!($s))
     };
 }
