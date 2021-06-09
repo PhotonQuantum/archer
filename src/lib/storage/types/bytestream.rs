@@ -86,6 +86,7 @@ impl ByteStream {
                 file.seek(SeekFrom::Start(0)).await?;
                 let mut dest = File::create(path).await?;
                 tokio::io::copy(&mut file, &mut dest).await?;
+                dest.flush().await?;
             }
         }
         Ok(())
