@@ -83,6 +83,12 @@ impl ByteStream {
                 }
             }
             ByteStream::File {
+                object_type: FileObject::Path(src_path),
+                ..
+            } => {
+                tokio::fs::copy(src_path, path).await?;
+            }
+            ByteStream::File {
                 handle: mut file, ..
             } => {
                 file.seek(SeekFrom::Start(0)).await?;

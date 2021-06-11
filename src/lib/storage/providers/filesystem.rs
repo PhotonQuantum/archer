@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use tempfile::NamedTempFile;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt};
 
 use crate::consts::STORAGE_MEMORY_LIMIT;
 use crate::error::StorageError;

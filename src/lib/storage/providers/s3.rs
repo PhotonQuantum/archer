@@ -11,7 +11,7 @@ use rusoto_s3::{
 };
 use tempfile::NamedTempFile;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::consts::STORAGE_MEMORY_LIMIT;
 use crate::error::{S3Error, StorageError};
