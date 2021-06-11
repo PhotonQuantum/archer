@@ -3,11 +3,11 @@ use std::str::FromStr;
 use derive_builder::Builder;
 use pkginfo::PkgInfo;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::types::*;
 
-use super::date_serde;
-
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Builder)]
 #[builder(pattern = "owned")]
 pub struct PacmanEntry {
@@ -18,18 +18,18 @@ pub struct PacmanEntry {
     #[serde(rename = "NAME")]
     pub name: String,
     /// base
-    #[serde(rename = "BASE", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "BASE")]
     #[builder(default)]
     pub base: Option<String>,
     /// version
     #[serde(rename = "VERSION")]
     pub version: Version,
     /// description
-    #[serde(rename = "DESC", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "DESC")]
     #[builder(default)]
     pub description: Option<String>,
     /// package groups
-    #[serde(rename = "GROUPS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "GROUPS")]
     #[builder(default)]
     pub groups: Option<Vec<String>>,
     /// tar.xz archive size
@@ -45,50 +45,50 @@ pub struct PacmanEntry {
     #[serde(rename = "SHA256SUM")]
     pub sha256_sum: String,
     /// PGP signature
-    #[serde(rename = "PGPSIG", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "PGPSIG")]
     #[builder(default)]
     pub pgp_signature: Option<String>,
     /// package home url
-    #[serde(rename = "URL", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "URL")]
     #[builder(default)]
     pub url: Option<String>,
     /// license name
-    #[serde(rename = "LICENSE", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "LICENSE")]
     #[builder(default)]
     pub license: Option<Vec<String>>,
     /// processor architecture
     #[serde(rename = "ARCH")]
     pub arch: String,
     /// build date
-    #[serde(rename = "BUILDDATE", with = "date_serde")]
+    #[serde(rename = "BUILDDATE")]
     pub build_date: chrono::NaiveDateTime,
     /// who created this package
     #[serde(rename = "PACKAGER")]
     pub packager: String,
     /// packages which this package replaces
-    #[serde(rename = "REPLACES", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "REPLACES")]
     #[builder(default)]
     pub replaces: Option<Vec<Depend>>,
     /// packages which cannot be used with this package
-    #[serde(rename = "CONFLICTS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "CONFLICTS")]
     #[builder(default)]
     pub conflicts: Option<Vec<Depend>>,
     /// packages provided by this package
-    #[serde(rename = "PROVIDES", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "PROVIDES")]
     #[builder(default)]
     pub provides: Option<Vec<Depend>>,
     /// run-time dependencies
-    #[serde(rename = "DEPENDS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "DEPENDS")]
     #[builder(default)]
     pub depends: Option<Vec<Depend>>,
-    #[serde(rename = "OPTDEPENDS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "OPTDEPENDS")]
     #[builder(default)]
     pub optdepends: Option<Vec<Depend>>,
     /// build-time dependencies
-    #[serde(rename = "MAKEDEPENDS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "MAKEDEPENDS")]
     #[builder(default)]
     pub makedepends: Option<Vec<Depend>>,
-    #[serde(rename = "CHECKDEPENDS", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "CHECKDEPENDS")]
     #[builder(default)]
     pub checkdepends: Option<Vec<Depend>>,
 }
