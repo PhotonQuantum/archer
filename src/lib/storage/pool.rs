@@ -1,5 +1,6 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
+
+use tokio::sync::Mutex;
 
 use crate::storage::transaction::{Txn, TxnAction};
 use crate::storage::StorageProvider;
@@ -33,8 +34,8 @@ impl<T: StorageProvider> PackagePool<T> {
     pub async fn commit(&mut self) -> Result<()> {
         let mut txn = Txn::new();
         // locking remote and local maps, preventing inconsistency when getting file
-        let mut remote_map = self.remote_map.lock().unwrap();
-        let mut local_map = self.local_map.lock().unwrap();
+        let mut remote_map = self.remote_map.lock().await;
+        let mut local_map = self.local_map.lock().await;
 
         for (meta, path) in &self.stage_map {
             let unit = LocalPackageUnit::new(meta, path);
@@ -86,17 +87,17 @@ impl<T: StorageProvider> PackagePool<T> {
             return Ok(Some(path.clone()));
         }
 
-        let maybe_local_filename = self.local_map.lock().unwrap().get(meta).cloned();
+        let maybe_local_filename = self.local_map.lock().await.get(meta).cloned();
         if let Some(filename) = maybe_local_filename {
             // exists in local cache
             return Ok(Some(self.local.join(filename)));
         }
 
-        let maybe_remote_key = self.remote_map.lock().unwrap().get(meta).cloned();
+        let maybe_remote_key = self.remote_map.lock().await.get(meta).cloned();
         return if let Some(key) = maybe_remote_key {
             // optimistic lock: first try to download
             let data = self.remote.get_file(&key).await?;
-            let mut local_map = self.local_map.lock().unwrap();
+            let mut local_map = self.local_map.lock().await;
             if let Some(filename) = local_map.get(meta) {
                 // conflict, take the previously downloaded file
                 Ok(Some(self.local.join(filename)))

@@ -13,7 +13,7 @@ mod filesystem;
 mod s3;
 
 #[async_trait]
-pub trait StorageProvider {
+pub trait StorageProvider: Sync + Send {
     async fn get_file(&self, path: &Path) -> Result<ByteStream>;
     // async fn get_file_meta();
     async fn put_file(&self, path: &Path, data: ByteStream) -> Result<()>;
