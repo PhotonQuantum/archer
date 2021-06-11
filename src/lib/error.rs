@@ -30,6 +30,8 @@ pub enum StorageError {
     FileExists(PathBuf),
     #[error("file doesn't exist: {0}")]
     FileNotExists(PathBuf),
+    #[error("storage is in an inconsistent state")]
+    Conflict,
     #[error("s3 error: {0}")]
     S3Error(#[from] S3Error),
     #[error("json error: {0}")]

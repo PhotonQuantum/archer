@@ -25,6 +25,10 @@ fn setup_memory_bytestream() -> ByteStream {
     ByteStream::from(data)
 }
 
+fn setup_memory_bytestream_with(data: Vec<u8>) -> ByteStream {
+    ByteStream::from(data)
+}
+
 fn setup_unnamedfile_bytestream() -> ByteStream {
     let mut file = tempfile().expect("unable to create temp file");
     assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
@@ -218,7 +222,7 @@ async fn test_s3_provider() {
 
 #[derive(Default)]
 struct MockProvider {
-    seq: Mutex<Vec<TxnAction>>,
+    seq: Mutex<Vec<PathBuf>>,
 }
 
 impl MockProvider {
@@ -228,11 +232,7 @@ impl MockProvider {
             .lock()
             .unwrap()
             .iter()
-            .find_position(|a| match a {
-                TxnAction::Put(p, _) => p == path_1,
-                TxnAction::Delete(p) => p == path_1,
-                TxnAction::Barrier => unreachable!(),
-            })
+            .find_position(|p| p.as_path() == path_1)
             .unwrap()
             .0;
         let pos_2 = self
@@ -240,11 +240,7 @@ impl MockProvider {
             .lock()
             .unwrap()
             .iter()
-            .find_position(|a| match a {
-                TxnAction::Put(p, _) => p == path_2,
-                TxnAction::Delete(p) => p == path_2,
-                TxnAction::Barrier => unreachable!(),
-            })
+            .find_position(|p| p.as_path() == path_2)
             .unwrap()
             .0;
         assert!(pos_1 < pos_2, "ord assertion failed");
@@ -262,7 +258,7 @@ impl StorageProvider for MockProvider {
         self.seq
             .lock()
             .unwrap()
-            .push(TxnAction::Put(path.to_path_buf(), data));
+            .push(path.to_path_buf());
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
         Ok(())
     }
@@ -272,7 +268,7 @@ impl StorageProvider for MockProvider {
         self.seq
             .lock()
             .unwrap()
-            .push(TxnAction::Delete(path.to_path_buf()));
+            .push(path.to_path_buf());
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 20.) as u64)).await;
         Ok(())
     }
@@ -310,6 +306,57 @@ async fn must_txn() {
     ord_2.into_iter().for_each(|(x, y)| {
         mock_provider.assert_ord(&PathBuf::from(x.to_string()), &PathBuf::from(y.to_string()))
     });
+}
+
+fn validate_as(expect: Option<Vec<u8>>) -> Box<dyn Fn(Option<Vec<u8>>) -> Result<()>> {
+    Box::new(move |data| {
+        if data == expect {
+            Ok(())
+        } else {
+            Err(StorageError::Conflict)
+        }
+    })
+}
+
+#[rstest]
+// naive
+#[case(vec![
+    TxnAction::Put("1".into(), setup_memory_bytestream_with(vec![1,2,3,4])),
+    TxnAction::Put("2".into(), setup_memory_bytestream_with(vec![1,2,3,4,5])),
+    TxnAction::Put("3".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6])),
+    TxnAction::Put("4".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6,7])),
+    TxnAction::Barrier,
+    TxnAction::Delete("4".into()),
+    TxnAction::Assertion("1".into(), validate_as(Some(vec![1,2,3,4]))),
+    TxnAction::Assertion("2".into(), validate_as(Some(vec![1,2,3,4,5]))),
+    TxnAction::Assertion("3".into(), validate_as(Some(vec![1,2,3,4,5,6]))),
+    TxnAction::Assertion("4".into(), validate_as(None)),
+], |result: Result<()>|assert!(result.is_ok()))]
+// assertion has barrier
+#[case(vec![
+    TxnAction::Put("1".into(), setup_memory_bytestream_with(vec![1,2,3,4])),
+    TxnAction::Put("2".into(), setup_memory_bytestream_with(vec![1,2,3,4,5])),
+    TxnAction::Put("3".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6])),
+    TxnAction::Put("4".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6,7])),
+    TxnAction::Assertion("4".into(), validate_as(Some(vec![1,2,3,4,5,6,7]))),
+], |result: Result<()>|assert!(result.is_ok()))]
+#[case(vec![
+    TxnAction::Put("1".into(), setup_memory_bytestream_with(vec![1,2,3,4])),
+    TxnAction::Put("2".into(), setup_memory_bytestream_with(vec![1,2,3,4,5])),
+    TxnAction::Put("3".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6])),
+    TxnAction::Assertion("4".into(), validate_as(Some(vec![1,2,3,4,5,6,7]))),
+    TxnAction::Put("4".into(), setup_memory_bytestream_with(vec![1,2,3,4,5,6,7])),
+], |result: Result<()>|assert!(matches!(result, Err(StorageError::Conflict))))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 6)]
+async fn must_txn_asrt(#[case] actions: Vec<TxnAction>, #[case] expect: fn(Result<()>)) {
+    let test_dir = tempdir().expect("temp dir creation failed");
+    let fs_storage = FSStorage::new_with_limit(test_dir.path(), 5);
+
+    let mut txn = Txn::new();
+    for action in actions {
+        txn.add(action);
+    }
+    expect(txn.commit(&fs_storage).await)
 }
 
 #[test]

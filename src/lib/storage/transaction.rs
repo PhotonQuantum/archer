@@ -3,13 +3,20 @@ use std::path::PathBuf;
 
 use itertools::Itertools;
 
+use crate::error::StorageError;
+
 use super::types::*;
 use super::StorageProvider;
+use tokio::io::AsyncReadExt;
 
-#[derive(Debug)]
+// NOTE
+// The assertion here doesn't guarantee atomicity because S3 doesn't provide it.
+// It can only be used as a naive safety check, and its result can't be trusted
+// especially when the file is large.
 pub enum TxnAction {
     Put(PathBuf, ByteStream),
     Delete(PathBuf),
+    Assertion(PathBuf, Box<dyn Fn(Option<Vec<u8>>) -> Result<()>>),
     Barrier,
 }
 
@@ -19,6 +26,23 @@ impl TxnAction {
             TxnAction::Put(key, data) => target.put_file(&key, data).await?,
             TxnAction::Delete(key) => target.delete_file(&key).await?,
             TxnAction::Barrier => panic!("barrier can't be executed"),
+            TxnAction::Assertion(key, func) => {
+                let stream = target.get_file(&key).await.map(Some).or_else(|e| {
+                    if let StorageError::FileNotExists(_) = e {
+                        Ok(None)
+                    } else {
+                        Err(e)
+                    }
+                })?;
+                let buf = if let Some(mut stream) = stream {
+                    let mut buf: Vec<u8> = Vec::new();
+                    stream.read_to_end(&mut buf).await?;
+                    Some(buf)
+                } else {
+                    None
+                };
+                func(buf)?
+            }
         }
         Ok(())
     }
@@ -27,7 +51,7 @@ impl TxnAction {
 // NOTE
 // There's no rollback support now.
 // Also, atomicity can't be ensured because S3 doesn't support atomic move operation.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Txn {
     seq: VecDeque<TxnAction>,
 }
@@ -54,10 +78,13 @@ impl Txn {
     pub async fn commit<T: StorageProvider>(mut self, target: &T) -> Result<()> {
         let mut staging = vec![];
         while let Some(action) = self.seq.pop_front() {
-            if let TxnAction::Barrier = action {
-                Txn::join_commit(&mut staging, target).await?;
-            } else {
-                staging.push(action);
+            match action {
+                TxnAction::Assertion(_, _) => {
+                    Txn::join_commit(&mut staging, target).await?;
+                    action.execute(target).await?;
+                }
+                TxnAction::Barrier => Txn::join_commit(&mut staging, target).await?,
+                _ => staging.push(action),
             }
         }
         if !staging.is_empty() {
