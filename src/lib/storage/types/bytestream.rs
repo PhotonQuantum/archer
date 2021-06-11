@@ -60,7 +60,7 @@ impl ByteStream {
                 let data = v.into_inner();
                 let mut dest = File::create(path).await?;
                 dest.write_all(&data).await?;
-                dest.flush().await?;
+                dest.sync_all().await?;
             }
             ByteStream::File {
                 object_type: FileObject::NamedTemp(file),
@@ -88,7 +88,7 @@ impl ByteStream {
                 file.seek(SeekFrom::Start(0)).await?;
                 let mut dest = File::create(path).await?;
                 tokio::io::copy(&mut file, &mut dest).await?;
-                dest.flush().await?;
+                dest.sync_all().await?;
             }
         }
         Ok(())

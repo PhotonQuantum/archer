@@ -78,13 +78,13 @@ impl BuildTarget {
             let desc_data = desc_builder.build()?;
             let mut desc_file = File::create(desc_path)?;
             desc_file.write_all(&*desc_data)?;
-            desc_file.flush()?;
+            desc_file.sync_all()?;
 
             let files_path = path.join(format!("{}.files.tar.zst", repo));
             let files_data = files_builder.build()?;
             let mut files_file = File::create(files_path)?;
             files_file.write_all(&*files_data)?;
-            files_file.flush()?;
+            files_file.sync_all()?;
         }
         Ok(())
     }

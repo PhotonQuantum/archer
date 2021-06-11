@@ -166,7 +166,7 @@ impl StorageProvider for S3Storage {
             let mut dest = File::from_std(sync_dest.reopen()?);
 
             tokio::io::copy(&mut src, &mut dest).await?;
-            dest.flush().await?;
+            dest.sync_all().await?;
 
             Ok(ByteStream::try_from(sync_dest)?)
         } else {
