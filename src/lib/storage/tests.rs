@@ -253,7 +253,7 @@ impl StorageProvider for MockProvider {
         panic!("get_file not supported")
     }
 
-    async fn put_file(&self, path: &Path, data: ByteStream) -> Result<()> {
+    async fn put_file(&self, path: &Path, _data: ByteStream) -> Result<()> {
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
         self.seq
             .lock()

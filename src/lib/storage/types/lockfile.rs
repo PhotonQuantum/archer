@@ -5,17 +5,36 @@ use serde::{Deserialize, Serialize};
 use crate::consts::LOCK_FILE_VERSION;
 
 use super::*;
+use crate::utils::unix_timestamp;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LockFile {
-    version: u32,
-    packages: HashSet<RemotePackageUnit>,
+    pub version: u32,
+    pub timestamp: u128,
+    pub packages: HashSet<RemotePackageUnit>,
+}
+
+impl Default for LockFile {
+    fn default() -> LockFile {
+        Self {
+            version: LOCK_FILE_VERSION,
+            timestamp: unix_timestamp(),
+            packages: HashSet::new(),
+        }
+    }
+}
+
+impl LockFile {
+    pub fn new() -> LockFile {
+        Default::default()
+    }
 }
 
 impl From<&MetaKeyMap> for LockFile {
     fn from(m: &MetaKeyMap) -> Self {
         Self {
             version: LOCK_FILE_VERSION,
+            timestamp: unix_timestamp(),
             packages: m
                 .iter()
                 .map(|(meta, key)| RemotePackageUnit {

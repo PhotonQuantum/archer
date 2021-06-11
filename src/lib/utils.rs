@@ -1,5 +1,6 @@
 use std::os::linux::fs::MetadataExt;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use alpm::Alpm;
 
@@ -29,4 +30,8 @@ pub fn is_same_fs(path_1: impl AsRef<Path>, path_2: impl AsRef<Path>) -> bool {
     get_stdev(path_1)
         .and_then(|stdev_1| get_stdev(path_2).map(|stdev_2| stdev_1 == stdev_2))
         .unwrap_or(false)
+}
+
+pub fn unix_timestamp() -> u128 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()
 }
