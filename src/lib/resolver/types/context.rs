@@ -141,7 +141,7 @@ impl Context {
     }
     pub fn insert(
         mut self,
-        pkg: ArcPackage,
+        pkg: &ArcPackage,
         reasons: HashSet<ArcPackage>,
     ) -> Option<(Self, MaybeCycle)> {
         self.insert_mut(pkg, reasons)
@@ -151,7 +151,7 @@ impl Context {
     // success(hascycle(cycle))
     pub fn insert_mut(
         &mut self,
-        pkg: ArcPackage,
+        pkg: &ArcPackage,
         reasons: HashSet<ArcPackage>,
     ) -> Option<MaybeCycle> {
         // TODO unchecked insert
@@ -167,7 +167,7 @@ impl Context {
             self.packages.insert(name, pkg.clone());
             self.graph.add_node(pkg.clone());
             let cycle = reasons.iter().fold(None, |acc, reason| {
-                let eff = self.graph.insert(reason, &pkg).unwrap();
+                let eff = self.graph.insert(reason, pkg).unwrap();
                 if acc.is_none() {
                     if let EdgeEffect::NewEdge(Some(cycle)) = eff {
                         Some(cycle)
@@ -179,11 +179,11 @@ impl Context {
                 }
             });
             for reason in reasons {
-                self.graph.insert(&reason, &pkg).unwrap();
+                self.graph.insert(&reason, pkg).unwrap();
             }
 
             let mut provides = pkg.provides().into_owned();
-            provides.push(Depend::from(&*pkg));
+            provides.push(Depend::from(pkg.as_ref()));
             for provide in provides {
                 let depend_version = if let Some(pkg) = self.provides.get(provide.name.as_str()) {
                     pkg.union(&provide.version)

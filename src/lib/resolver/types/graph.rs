@@ -33,11 +33,11 @@ impl<T: Hash + Eq + Clone> Default for SCCGraph<T> {
 }
 
 impl<T: Hash + Eq + Clone> SCCGraph<T> {
-    pub fn new(&self) -> Self {
+    pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn with_capacity(&self, n: usize) -> Self {
+    pub fn with_capacity(n: usize) -> Self {
         Self {
             base: BaseGraph::with_capacity(n),
             proj: HashMap::with_capacity(n),
@@ -113,7 +113,7 @@ impl<T: Hash + Eq + Clone> SCCGraph<T> {
             .cloned()
             .collect_vec();
         for v in missing_vertices {
-            self.add_node(v.clone())
+            self.add_node(v.clone());
         }
         for (i, j) in other.edges() {
             self.insert(i, j)?;

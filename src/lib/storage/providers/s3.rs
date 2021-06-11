@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
 
@@ -159,8 +160,7 @@ impl StorageProvider for S3Storage {
 
         if data
             .content_length
-            .map(|l| l > self.memory_limit as i64)
-            .unwrap_or(false)
+            .map_or(false, |l| l > self.memory_limit as i64)
         {
             let sync_dest = NamedTempFile::new()?;
             let mut dest = File::from_std(sync_dest.reopen()?);
@@ -168,7 +168,7 @@ impl StorageProvider for S3Storage {
             tokio::io::copy(&mut src, &mut dest).await?;
             dest.flush().await?;
 
-            Ok(ByteStream::from(sync_dest))
+            Ok(ByteStream::try_from(sync_dest)?)
         } else {
             let mut buf = vec![];
             src.read_to_end(&mut buf).await?;

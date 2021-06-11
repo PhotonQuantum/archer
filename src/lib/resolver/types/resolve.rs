@@ -31,16 +31,17 @@ pub fn always_depend(_: &Package) -> DependPolicy {
 pub fn makedepend_if_aur_custom(pkg: &Package) -> DependPolicy {
     match pkg {
         Package::PacmanPackage(_) => BitFlags::from(DependChoice::Depends),
-        Package::AurPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
-        Package::CustomPackage(_) => DependChoice::Depends | DependChoice::MakeDepends,
+        Package::AurPackage(_) | Package::CustomPackage(_) => {
+            DependChoice::Depends | DependChoice::MakeDepends
+        }
     }
 }
 
-pub fn always_allow_cyclic(_: &[&Package]) -> bool {
+pub const fn always_allow_cyclic(_: &[&Package]) -> bool {
     true
 }
 
-pub fn always_deny_cyclic(_: &[&Package]) -> bool {
+pub const fn always_deny_cyclic(_: &[&Package]) -> bool {
     false
 }
 

@@ -27,23 +27,22 @@ pub enum BuildTarget {
 
 impl BuildTarget {
     pub fn new(path: impl AsRef<Path>, archive_repo: Option<&str>) -> Self {
-        if let Some(repo) = archive_repo {
-            Self::Archive {
+        archive_repo.map_or_else(
+            || Self::Folder(path.as_ref().to_path_buf()),
+            |repo| Self::Archive {
                 path: path.as_ref().to_path_buf(),
                 repo: repo.to_string(),
                 desc_builder: Default::default(),
                 files_builder: Default::default(),
-            }
-        } else {
-            Self::Folder(path.as_ref().to_path_buf())
-        }
+            },
+        )
     }
 
     // append package to target
-    pub fn append_pkg(&mut self, desc: PacmanEntry, files: Vec<String>) -> Result<()> {
+    pub fn append_pkg(&mut self, desc: &PacmanEntry, files: &[String]) -> Result<()> {
         let dir_name =
             PathBuf::from_str(format!("{}-{}", desc.name, desc.version).as_str()).unwrap();
-        let desc_content = archlinux_repo_parser::to_string(&desc).unwrap(); // TODO error handling
+        let desc_content = archlinux_repo_parser::to_string(desc).unwrap(); // TODO error handling
         let files_content = format!("%FILES%\n{}", files.join("\n"));
         match self {
             BuildTarget::Folder(target) => {
@@ -174,6 +173,6 @@ impl DBBuilder {
             .unwrap();
 
         // output files
-        target.append_pkg(desc, files)
+        target.append_pkg(&desc, &files)
     }
 }

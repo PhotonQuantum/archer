@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::env;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -27,14 +28,14 @@ fn setup_unnamedfile_bytestream() -> ByteStream {
     let mut file = tempfile().expect("unable to create temp file");
     assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
     file.seek(SeekFrom::Start(0)).expect("unable to rewind");
-    ByteStream::from(file)
+    ByteStream::try_from(file).unwrap()
 }
 
 fn setup_tempfile_bytestream() -> ByteStream {
     let mut file = NamedTempFile::new().expect("unable to create temp file");
     assert_eq!(file.write(&[1, 2, 3, 4, 5]).expect("write failed"), 5);
     file.seek(SeekFrom::Start(0)).expect("unable to rewind");
-    ByteStream::from(file)
+    ByteStream::try_from(file).unwrap()
 }
 
 fn setup_pathfile_bytestream() -> ByteStream {

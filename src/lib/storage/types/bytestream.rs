@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+use std::fs::File;
 use std::io::Result as IOResult;
 use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -40,7 +42,7 @@ impl ByteStream {
         })
     }
 
-    pub fn in_memory(&self) -> bool {
+    pub const fn in_memory(&self) -> bool {
         matches!(self, ByteStream::Memory(_))
     }
 
@@ -51,7 +53,7 @@ impl ByteStream {
         }
     }
 
-    pub async fn into_file(self, path: impl AsRef<Path> + Clone) -> IOResult<()> {
+    pub async fn into_file(self, path: impl AsRef<Path> + Clone + Send) -> IOResult<()> {
         use tokio::fs::File;
         match self {
             ByteStream::Memory(v) => {
@@ -115,7 +117,7 @@ impl Clone for ByteStream {
                 let mut src = std::fs::File::open(file_path).unwrap();
                 let mut new_file = NamedTempFile::new().unwrap();
                 std::io::copy(&mut src, &mut new_file).unwrap();
-                ByteStream::from(new_file)
+                ByteStream::try_from(new_file).unwrap()
             }
             ByteStream::File {
                 object_type: FileObject::Unnamed,
@@ -155,25 +157,29 @@ impl From<Vec<u8>> for ByteStream {
     }
 }
 
-impl From<NamedTempFile> for ByteStream {
-    fn from(f: NamedTempFile) -> Self {
-        let length = f.as_file().metadata().unwrap().len();
-        Self::File {
-            handle: f.reopen().unwrap().into(),
+impl TryFrom<NamedTempFile> for ByteStream {
+    type Error = std::io::Error;
+
+    fn try_from(f: NamedTempFile) -> Result<Self, Self::Error> {
+        let length = f.as_file().metadata()?.len();
+        Ok(Self::File {
+            handle: f.reopen()?.into(),
             object_type: FileObject::NamedTemp(Arc::new(f)),
             length,
-        }
+        })
     }
 }
 
-impl From<std::fs::File> for ByteStream {
-    fn from(f: std::fs::File) -> Self {
-        let length = f.metadata().unwrap().len();
-        Self::File {
+impl TryFrom<std::fs::File> for ByteStream {
+    type Error = std::io::Error;
+
+    fn try_from(f: File) -> Result<Self, Self::Error> {
+        let length = f.metadata()?.len();
+        Ok(Self::File {
             handle: f.into(),
             object_type: FileObject::Unnamed,
             length,
-        }
+        })
     }
 }
 

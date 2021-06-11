@@ -37,7 +37,7 @@ impl Txn {
         Default::default()
     }
     pub fn add(&mut self, action: TxnAction) {
-        self.seq.push_back(action)
+        self.seq.push_back(action);
     }
     async fn join_commit<T: StorageProvider>(
         staging: &mut Vec<TxnAction>,
@@ -55,13 +55,13 @@ impl Txn {
         let mut staging = vec![];
         while let Some(action) = self.seq.pop_front() {
             if let TxnAction::Barrier = action {
-                Txn::join_commit(&mut staging, target).await?
+                Txn::join_commit(&mut staging, target).await?;
             } else {
-                staging.push(action)
+                staging.push(action);
             }
         }
         if !staging.is_empty() {
-            Txn::join_commit(&mut staging, target).await?
+            Txn::join_commit(&mut staging, target).await?;
         }
         Ok(())
     }

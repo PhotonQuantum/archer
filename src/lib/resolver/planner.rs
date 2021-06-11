@@ -84,8 +84,7 @@ impl PlanBuilder {
                     let first_pkg = v.pop().unwrap();
                     match first_pkg {
                         Package::PacmanPackage(_) => None,
-                        Package::AurPackage(_) => Some(first_pkg),
-                        Package::CustomPackage(_) => Some(first_pkg),
+                        Package::AurPackage(_) | Package::CustomPackage(_) => Some(first_pkg),
                     }
                 })
                 .collect_vec();
@@ -108,8 +107,9 @@ impl PlanBuilder {
                 if let Some(pkg) = deps.pop() {
                     match pkg {
                         Package::PacmanPackage(_) => pacman_make_deps.push(pkg),
-                        Package::AurPackage(_) => aur_custom_make_deps.push(pkg),
-                        Package::CustomPackage(_) => aur_custom_make_deps.push(pkg),
+                        Package::AurPackage(_) | Package::CustomPackage(_) => {
+                            aur_custom_make_deps.push(pkg)
+                        }
                     }
                 }
             }
@@ -124,13 +124,13 @@ impl PlanBuilder {
                 if pkgs.len() > 1 {
                     plan.push(PlanAction::InstallGroup(
                         pkgs.into_iter().map(|p| p.as_ref().clone()).collect(),
-                    ))
+                    ));
                 } else {
                     let pkg = pkgs.pop().unwrap();
                     if let Package::AurPackage(_) = pkg.as_ref() {
                         plan.push(PlanAction::Build(pkg.as_ref().clone()));
                     }
-                    plan.push(PlanAction::Install(pkg.as_ref().clone()))
+                    plan.push(PlanAction::Install(pkg.as_ref().clone()));
                 }
             }
 
@@ -144,7 +144,7 @@ impl PlanBuilder {
             {
                 plan.push(PlanAction::InstallGroup(
                     pkgs.into_iter().map(|p| p.as_ref().clone()).collect(),
-                ))
+                ));
             }
 
             // need to build its aur dependencies

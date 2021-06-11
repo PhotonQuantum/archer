@@ -21,7 +21,7 @@ impl Display for PlanAction {
             PlanAction::InstallGroup(pkgs) => write!(
                 f,
                 "InstallGroup({})",
-                pkgs.iter().map(|p| p.to_string()).join(", ")
+                pkgs.iter().map(ToString::to_string).join(", ")
             ),
         }
     }

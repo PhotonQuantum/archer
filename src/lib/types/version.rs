@@ -65,7 +65,7 @@ impl From<&alpm::Ver> for Version {
 impl Hash for Version {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // FIX: not reliable because of custom partial eq implementation
-        self.0.hash(state)
+        self.0.hash(state);
     }
 }
 

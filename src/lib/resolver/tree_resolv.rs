@@ -41,7 +41,7 @@ impl TreeResolver {
     fn insert_into_ctx(
         &self,
         mut ctx: Context,
-        pkg: ArcPackage,
+        pkg: &ArcPackage,
         reason: HashSet<ArcPackage>,
     ) -> Result<Option<CtxWithCycles>> {
         Ok(self
@@ -59,7 +59,7 @@ impl TreeResolver {
     fn insert_into_ctx_mut(
         &self,
         ctx: &mut Context,
-        pkg: ArcPackage,
+        pkg: &ArcPackage,
         reason: HashSet<ArcPackage>,
     ) -> Result<Option<MaybeCycle>> {
         if self.resolve_policy.is_mortal_blade(&*pkg)? {
@@ -109,7 +109,7 @@ impl TreeResolver {
                 }
                 if !maybe_cycle.is_empty()
                     && maybe_cycle.into_iter().all(|cycle| {
-                        !(self.cyclic_policy)(&cycle.iter().map(|pkg| pkg.as_ref()).collect_vec())
+                        !(self.cyclic_policy)(&cycle.iter().map(AsRef::as_ref).collect_vec())
                     })
                 {
                     // TODO error report
@@ -148,9 +148,8 @@ impl TreeResolver {
                     Candidate::Continue(v) => v,
                     Candidate::Finish((ctx, maybe_cycle)) => {
                         if let Some(cycle) = maybe_cycle {
-                            if !(self.cyclic_policy)(
-                                &cycle.iter().map(|pkg| pkg.as_ref()).collect_vec(),
-                            ) {
+                            if !(self.cyclic_policy)(&cycle.iter().map(AsRef::as_ref).collect_vec())
+                            {
                                 continue;
                             }
                         }
@@ -184,7 +183,7 @@ impl TreeResolver {
                 let name = x.to_string();
                 let x = Arc::new(x);
                 acc.and_then(|ctx| {
-                    let (ctx, _) = self.insert_into_ctx(ctx, x.clone(), hashset!())?.ok_or(
+                    let (ctx, _) = self.insert_into_ctx(ctx, &x, hashset!())?.ok_or(
                         Error::DependencyError(DependencyError::ConflictDependency(name)),
                     )?;
                     Ok(ctx)
@@ -211,7 +210,7 @@ impl TreeResolver {
                     .entry(dep.name.clone())
                     .and_modify(|(original_dep, pkgs)| {
                         original_dep.version = original_dep.version.union(&dep.version.clone());
-                        pkgs.push(pkg.clone())
+                        pkgs.push(pkg.clone());
                     })
                     .or_insert((dep.clone(), vec![pkg.clone()]));
             });
@@ -337,7 +336,7 @@ impl TreeResolver {
             |acc, (dep, pkg)| {
                 acc.and_then(|(ctx, mut maybe_cycle)| {
                     ctx.insert(
-                        pkg,
+                        &pkg,
                         map_dep_parents.get(&dep).unwrap().iter().cloned().collect(),
                     )
                     .map(|(ctx, maybe_cycle_new)| {
