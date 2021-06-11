@@ -24,6 +24,14 @@ impl AsRef<PackageMeta> for &PackageMeta {
 }
 
 impl PackageMeta {
+    pub fn new(name: &str, version: &Version, checksum: u64) -> Self {
+        PackageMeta {
+            name: name.to_string(),
+            version: version.clone(),
+            checksum,
+        }
+    }
+
     pub fn short_chksum(&self) -> String {
         let mut str_chksum = format!("{:x}", self.checksum);
         str_chksum.truncate(8);

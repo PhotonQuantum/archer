@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::io::{Seek, SeekFrom, Write};
@@ -309,4 +310,27 @@ async fn must_txn() {
     ord_2.into_iter().for_each(|(x, y)| {
         mock_provider.assert_ord(&PathBuf::from(x.to_string()), &PathBuf::from(y.to_string()))
     });
+}
+
+#[test]
+fn test_lockfile() {
+    let mut meta_map: MetaKeyMap = HashMap::new();
+    meta_map.insert(
+        PackageMeta::new("a", &Version(String::from("1.0.0")), 0),
+        PathBuf::from("a.tar"),
+    );
+    meta_map.insert(
+        PackageMeta::new("b", &Version(String::from("1.0.1")), 1),
+        PathBuf::from("b.tar"),
+    );
+
+    let lock_file = LockFile::from(&meta_map);
+
+    let ser_lockfile = serde_json::to_string(&lock_file).expect("unable to serialize lockfile");
+    let de_lockfile: LockFile =
+        serde_json::from_str(ser_lockfile.as_str()).expect("unable to deserialize lockfile");
+
+    let de_map = MetaKeyMap::from(&de_lockfile);
+
+    assert_eq!(meta_map, de_map, "map mismatch");
 }
