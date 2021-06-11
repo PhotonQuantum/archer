@@ -255,20 +255,14 @@ impl StorageProvider for MockProvider {
 
     async fn put_file(&self, path: &Path, _data: ByteStream) -> Result<()> {
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
-        self.seq
-            .lock()
-            .unwrap()
-            .push(path.to_path_buf());
+        self.seq.lock().unwrap().push(path.to_path_buf());
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 50.) as u64)).await;
         Ok(())
     }
 
     async fn delete_file(&self, path: &Path) -> Result<()> {
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 20.) as u64)).await;
-        self.seq
-            .lock()
-            .unwrap()
-            .push(path.to_path_buf());
+        self.seq.lock().unwrap().push(path.to_path_buf());
         tokio::time::sleep(Duration::from_millis((random::<f32>() * 20.) as u64)).await;
         Ok(())
     }
@@ -308,7 +302,7 @@ async fn must_txn() {
     });
 }
 
-fn validate_as(expect: Option<Vec<u8>>) -> Box<dyn Fn(Option<Vec<u8>>) -> Result<()>> {
+fn validate_as(expect: Option<Vec<u8>>) -> Box<dyn Fn(Option<Vec<u8>>) -> Result<()> + Send> {
     Box::new(move |data| {
         if data == expect {
             Ok(())

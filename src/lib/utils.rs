@@ -33,5 +33,8 @@ pub fn is_same_fs(path_1: impl AsRef<Path>, path_2: impl AsRef<Path>) -> bool {
 }
 
 pub fn unix_timestamp() -> u128 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
 }

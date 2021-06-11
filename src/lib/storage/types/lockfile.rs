@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::consts::LOCK_FILE_VERSION;
+use crate::utils::unix_timestamp;
 
 use super::*;
-use crate::utils::unix_timestamp;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LockFile {

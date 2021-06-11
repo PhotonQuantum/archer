@@ -2,12 +2,12 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 
 use itertools::Itertools;
+use tokio::io::AsyncReadExt;
 
 use crate::error::StorageError;
 
 use super::types::*;
 use super::StorageProvider;
-use tokio::io::AsyncReadExt;
 
 // NOTE
 // The assertion here doesn't guarantee atomicity because S3 doesn't provide it.
@@ -16,7 +16,7 @@ use tokio::io::AsyncReadExt;
 pub enum TxnAction {
     Put(PathBuf, ByteStream),
     Delete(PathBuf),
-    Assertion(PathBuf, Box<dyn Fn(Option<Vec<u8>>) -> Result<()>>),
+    Assertion(PathBuf, Box<dyn Fn(Option<Vec<u8>>) -> Result<()> + Send>),
     Barrier,
 }
 
@@ -41,7 +41,7 @@ impl TxnAction {
                 } else {
                     None
                 };
-                func(buf)?
+                func(buf)?;
             }
         }
         Ok(())

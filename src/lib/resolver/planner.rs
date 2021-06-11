@@ -108,7 +108,7 @@ impl PlanBuilder {
                     match pkg {
                         Package::PacmanPackage(_) => pacman_make_deps.push(pkg),
                         Package::AurPackage(_) | Package::CustomPackage(_) => {
-                            aur_custom_make_deps.push(pkg)
+                            aur_custom_make_deps.push(pkg);
                         }
                     }
                 }
