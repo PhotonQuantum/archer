@@ -45,6 +45,7 @@ impl Repository for DebugRepository {
 #[case(AurRepo::new(), "systemd-git")]
 #[case(CustomRepository::new(vec ! [pkg ! ("a-alt", "1.0.0", vec ! [], vec ! [], vec ! [], deps ! ("a")), pkg ! ("b"), pkg ! ("a")]), "a")]
 fn must_search(#[case] repo: impl Repository, #[case] name: &str) {
+    wait_pacman_lock();
     let dep = dep!(name);
     let results = repo
         .find_package(&dep)
@@ -63,6 +64,7 @@ fn must_search(#[case] repo: impl Repository, #[case] name: &str) {
 #[case(AurRepo::new(), deps!("systemd-git", "agda-git"))]
 #[case(CustomRepository::new(vec![pkg!("a-alt", "1.0.0", vec![], vec![], vec![], deps!("a")), pkg!("b"), pkg!("a")]), deps!("a", "b"))]
 fn must_search_multi(#[case] repo: impl Repository, #[case] deps: Vec<Depend>) {
+    wait_pacman_lock();
     let results = repo
         .find_packages(&*deps)
         .expect("failed to search aur package");

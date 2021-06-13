@@ -1,0 +1,19 @@
+pkgname=archer_dummy_a
+pkgver=0.0.1
+pkgrel=1
+pkgdesc='Dummy package a.'
+arch=('x86_64')
+license=('custom')
+depends=()
+makedepends=('make' 'gcc')
+source=(archer_dummy_a.cpp Makefile)
+sha256sums=('ea359bf033312b0c1b03608ef6a962e4b63013ae38338ed8521492c96d0e3e55'
+            '9b3724ca7ab67377207be005ab6e57b8c709818ee854972f0140d4e955abe083')
+
+build() {
+    make
+}
+
+package() {
+    install -Dm755 archer_dummy_a "$pkgdir/usr/bin/archer_dummy_a"
+}

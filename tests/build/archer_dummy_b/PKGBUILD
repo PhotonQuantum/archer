@@ -1,0 +1,26 @@
+pkgbase=archer_dummy_b
+pkgname=(archer_dummy_b_1 archer_dummy_b_2)
+pkgver=0.0.1
+pkgrel=1
+pkgdesc='Dummy package a.'
+arch=('x86_64')
+license=('custom')
+depends=()
+makedepends=('make' 'gcc' 'archer_dummy_a')
+source=(archer_dummy_b_1.cpp archer_dummy_b_2.cpp Makefile)
+sha256sums=('09d6d10a886ac50828c828bc6f9a5944e8a03c27cc5482ff288b486f2b9cef26'
+            '5a88ee98e7e018cfbbae4e6148badfaf417ffc30f34a9071040ac49d9eb1ad4f'
+            'd5f273118e44ec9ae27e00ee23315481e7acaf78c1d3a171bd3fc346f6e5d669')
+
+build() {
+    archer_dummy_a
+    make
+}
+
+package_archer_dummy_b_1() {
+    install -Dm755 archer_dummy_b_1 "$pkgdir/usr/bin/archer_dummy_b_1"
+}
+
+package_archer_dummy_b_2() {
+    install -Dm755 archer_dummy_b_2 "$pkgdir/usr/bin/archer_dummy_b_2"
+}

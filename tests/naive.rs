@@ -7,6 +7,15 @@ use itertools::Itertools;
 use rstest::rstest;
 
 use archer_lib::prelude::*;
+use std::path::PathBuf;
+use std::time::Duration;
+
+fn wait_pacman_lock() {
+    let lock_path = PathBuf::from_str("/var/lib/pacman/db.lck").unwrap();
+    while lock_path.exists() {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
 
 fn must_plan(pkg: &str) {
     println!("Planning {}", pkg);
@@ -23,6 +32,7 @@ fn must_plan(pkg: &str) {
 }
 
 fn must_resolve(pkg: &str, skip_remote: bool) {
+    wait_pacman_lock();
     println!("Resolving {}", pkg);
     let pacman_remote_repo = Arc::new(PacmanRemote::new()) as Arc<dyn Repository>;
     let local_repo = Arc::new(PacmanLocal::new()) as Arc<dyn Repository>;

@@ -4,6 +4,8 @@ use std::str::FromStr;
 use itertools::Itertools;
 
 pub use crate::prelude::*;
+use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct PackageAssertion {
@@ -205,4 +207,11 @@ macro_rules! asrt {
     (!$s: literal) => {
         PkgsAssertion::NotExist(assert_pkg!($s))
     };
+}
+
+pub fn wait_pacman_lock() {
+    let lock_path = PathBuf::from_str("/var/lib/pacman/db.lck").unwrap();
+    while lock_path.exists() {
+        std::thread::sleep(Duration::from_secs(1));
+    }
 }
