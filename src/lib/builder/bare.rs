@@ -13,18 +13,37 @@ use tokio::sync::Mutex;
 
 type IOResult<T> = std::result::Result<T, std::io::Error>;
 
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct BareBuildOptions {
+    base: BuildOptions,
+    make_as_user: Option<String>
+}
+
+impl BareBuildOptions {
+    pub fn new(base_option: &BuildOptions) -> Self {
+        Self {
+            base: base_option.clone(),
+            make_as_user: None
+        }
+    }
+    pub fn make_as_user(mut self, user: &str) -> Self {
+        self.make_as_user = Some(user.to_string());
+        self
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct BareBuilder {
     pacman_lock: Mutex<()>,
-    options: BuildOptions,
+    options: BareBuildOptions,
 }
 
 impl BareBuilder {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Default::default()
     }
 
-    fn new_with_options(options: &BuildOptions) -> Self {
+    pub fn new_with_options(options: &BareBuildOptions) -> Self {
         Self {
             pacman_lock: Default::default(),
             options: options.clone(),
@@ -82,19 +101,26 @@ impl Builder for BareBuilder {
     }
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let mut cmd = Command::new("makepkg");
+        let mut cmd = if let Some(user) = &self.options.make_as_user {
+            let mut cmd = Command::new("sudo");
+            cmd.arg("-u");
+            cmd.arg(user);
+            cmd
+        } else {
+            Command::new("makepkg")
+        };
         cmd.current_dir(path).env("PKGDEST", path.join("output"));
 
-        if self.options.check {
+        if self.options.base.check {
             cmd.arg("--check");
         }
-        if self.options.sign {
+        if self.options.base.sign {
             cmd.arg("--sign");
         }
-        if self.options.skip_checksum {
+        if self.options.base.skip_checksum {
             cmd.arg("--skipchecksums");
         }
-        if self.options.skip_pgp_check {
+        if self.options.base.skip_pgp_check {
             cmd.arg("--skippgpcheck");
         }
 

@@ -12,12 +12,31 @@ mod tests;
 
 type Result<T> = std::result::Result<T, BuildError>;
 
+macro_rules! setter_copy {
+    ($name: ident, $tyty: ty) => {
+        pub fn $name(mut self, $name: $tyty) -> Self {
+            self.$name = $name;
+            self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BuildOptions {
     check: bool,
     sign: bool,
     skip_checksum: bool,
     skip_pgp_check: bool,
+}
+
+impl BuildOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    setter_copy!(check, bool);
+    setter_copy!(sign, bool);
+    setter_copy!(skip_checksum, bool);
+    setter_copy!(skip_pgp_check, bool);
 }
 
 #[async_trait]
