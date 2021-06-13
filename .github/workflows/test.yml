@@ -48,6 +48,7 @@ jobs:
     container: archlinux:base-devel
     env:
       S3_ENDPOINT: http://s3_mock:9090
+      BUILD_USER: archer
     services:
       s3_mock:
         image: adobe/s3mock
@@ -73,6 +74,10 @@ jobs:
           default: true
       - name: Populate Pacman Database️️ 🛎️
         run: pacman -Syu --noconfirm
+      - name: Create test user 🚀
+        run: |
+          useradd -m archer
+          bash -c "echo 'archer ALL=(ALL) NOPASSWD: ALL"" > /etc/sudoers.d/archer"
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:

@@ -3,31 +3,31 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use tokio::process::Command;
+use tokio::sync::Mutex;
 
 use crate::builder::{BuildOptions, Builder};
 use crate::error::{BuildError, CommandError, MakepkgError};
 use crate::utils::map_makepkg_code;
 
 use super::Result;
-use tokio::sync::Mutex;
 
 type IOResult<T> = std::result::Result<T, std::io::Error>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BareBuildOptions {
     base: BuildOptions,
-    make_as_user: Option<String>
+    build_as: Option<String>,
 }
 
 impl BareBuildOptions {
     pub fn new(base_option: &BuildOptions) -> Self {
         Self {
             base: base_option.clone(),
-            make_as_user: None
+            build_as: None,
         }
     }
-    pub fn make_as_user(mut self, user: &str) -> Self {
-        self.make_as_user = Some(user.to_string());
+    pub fn build_as(mut self, user: &str) -> Self {
+        self.build_as = Some(user.to_string());
         self
     }
 }
@@ -84,7 +84,8 @@ impl Builder for BareBuilder {
     }
 
     async fn install_local(&self, path: &Path) -> Result<()> {
-        self.pacman(&[OsStr::new("-U"), path.as_os_str(), OsStr::new("--needed")]).await
+        self.pacman(&[OsStr::new("-U"), path.as_os_str(), OsStr::new("--needed")])
+            .await
     }
 
     async fn install_remote(&self, packages: &[&str]) -> Result<()> {
@@ -101,7 +102,7 @@ impl Builder for BareBuilder {
     }
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let mut cmd = if let Some(user) = &self.options.make_as_user {
+        let mut cmd = if let Some(user) = &self.options.build_as {
             let mut cmd = Command::new("sudo");
             cmd.arg("-u");
             cmd.arg(user);

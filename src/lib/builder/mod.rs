@@ -18,7 +18,7 @@ macro_rules! setter_copy {
             self.$name = $name;
             self
         }
-    }
+    };
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]

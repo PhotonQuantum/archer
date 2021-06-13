@@ -1,11 +1,11 @@
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use itertools::Itertools;
 
 pub use crate::prelude::*;
-use std::path::PathBuf;
-use std::time::Duration;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct PackageAssertion {
