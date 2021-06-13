@@ -35,6 +35,7 @@ impl BareBuilder {
         let _lock = self.pacman_lock.lock().await;
         let mut cmd = Command::new("sudo");
         cmd.arg("pacman");
+        cmd.arg("--noconfirm");
         for arg in args {
             cmd.arg(arg);
         }
