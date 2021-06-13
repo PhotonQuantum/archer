@@ -9,11 +9,51 @@ use crate::types::*;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
+pub enum MakepkgError {
+    #[error("Unknown cause of failure")]
+    Unknown,
+    #[error("Error in configuration file")]
+    Configuration,
+    #[error("User specified an invalid option. This is likely an internal error. Fire a bug report if you meet one.")]
+    InvalidOption,
+    #[error("Error in user-supplied function in PKGBUILD")]
+    InvalidFunction,
+    #[error("Failed to create a viable package")]
+    InviablePackage,
+    #[error("A source or auxiliary file specified in the PKGBUILD is missing")]
+    MissingSrc,
+    #[error("The PKGDIR is missing")]
+    MissingPkgDir,
+    #[error("User attempted to run makepkg as root")]
+    RunAsRoot,
+    #[error("User lacks permissions to build or install to a given location")]
+    NoPermission,
+    #[error("Error parsing PKGBUILD")]
+    ParseError,
+    #[error("Programs necessary to run makepkg are missing")]
+    MissingProgram,
+    #[error("Specified GPG key does not exist or failed to sign package")]
+    SignFailure,
+    #[error("Interrupted by signal")]
+    Signal,
+}
+
+#[derive(Debug, Error)]
+pub enum CommandError {
+    #[error("unknown command")]
+    Unknown,
+    #[error("pacman")]
+    Pacman,
+    #[error("makepkg: {0}")]
+    Makepkg(MakepkgError),
+}
+
+#[derive(Debug, Error)]
 pub enum BuildError {
     #[error("io error: {0}")]
     IOError(#[from] std::io::Error),
-    #[error("command execution failure")]
-    CommandError
+    #[error("command execution failure: {0}")]
+    CommandError(#[from] CommandError),
 }
 
 #[derive(Debug, Error)]

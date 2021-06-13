@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use alpm::Alpm;
 
 use crate::consts::*;
-use crate::error::Result;
+use crate::error::{MakepkgError, Result};
 use crate::parser::PacmanParser;
 
 pub fn load_alpm() -> Result<Alpm> {
@@ -37,4 +37,22 @@ pub fn unix_timestamp() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis()
+}
+
+pub fn map_makepkg_code(status_code: i32) -> Option<MakepkgError> {
+    match status_code {
+        0 | 13 => None,
+        2 => Some(MakepkgError::Configuration),
+        3 => Some(MakepkgError::InvalidOption),
+        4 => Some(MakepkgError::InvalidFunction),
+        5 => Some(MakepkgError::InviablePackage),
+        6 => Some(MakepkgError::MissingSrc),
+        7 => Some(MakepkgError::MissingPkgDir),
+        10 => Some(MakepkgError::RunAsRoot),
+        11 => Some(MakepkgError::NoPermission),
+        12 => Some(MakepkgError::ParseError),
+        15 => Some(MakepkgError::MissingProgram),
+        16 => Some(MakepkgError::SignFailure),
+        _ => Some(MakepkgError::Unknown),
+    }
 }
