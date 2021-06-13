@@ -77,7 +77,7 @@ jobs:
       - name: Create test user 🚀
         run: |
           useradd -m archer
-          bash -c "echo 'archer ALL=(ALL) NOPASSWD: ALL"" > /etc/sudoers.d/archer"
+          bash -c "echo 'archer ALL=(ALL) NOPASSWD: ALL'" > /etc/sudoers.d/archer
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:
