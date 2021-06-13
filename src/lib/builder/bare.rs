@@ -102,23 +102,27 @@ impl Builder for BareBuilder {
     }
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
+        let output_dir = path.join("output");
         let mut cmd = if let Some(user) = &self.options.build_as {
             let mut cmd = Command::new("sudo");
             cmd.arg("-u");
             cmd.arg(user);
+            cmd.arg(format!("PKGDEST={}", output_dir.to_str().unwrap()));
             cmd.arg("makepkg");
             cmd
         } else {
-            Command::new("makepkg")
+            let mut cmd = Command::new("makepkg");
+            cmd.env("PKGDEST", &output_dir);
+            cmd
         };
 
-        let output_dir = path.join("output");
         if !output_dir.exists() {
             tokio::fs::create_dir(&output_dir).await?;
             if let Some(user) = &self.options.build_as {
-                let status = Command::new("chown")
+                let status = Command::new("sudo")
+                    .arg("chown")
                     .arg("-R")
-                    .arg(user)
+                    .arg(format!("{}:{}", user, user))
                     .arg(&path)
                     .spawn()?
                     .wait()
@@ -129,7 +133,7 @@ impl Builder for BareBuilder {
             }
         }
 
-        cmd.current_dir(path).env("PKGDEST", path.join("output"));
+        cmd.current_dir(path).env("PKGDEST", &output_dir);
 
         if self.options.base.check {
             cmd.arg("--check");
@@ -154,9 +158,10 @@ impl Builder for BareBuilder {
             .unwrap_or(Ok(()))?;
 
         if self.options.build_as.is_some() {
-            let status = Command::new("chown")
+            let status = Command::new("sudo")
+                .arg("chown")
                 .arg("-R")
-                .arg(users::get_current_uid().to_string())
+                .arg(format!("{}:{}", users::get_current_uid().to_string(), users::get_current_gid().to_string()))
                 .arg(&output_dir)
                 .spawn()?
                 .wait()
