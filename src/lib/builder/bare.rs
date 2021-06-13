@@ -60,11 +60,11 @@ impl Builder for BareBuilder {
     }
 
     async fn install_local(&self, path: &Path) -> Result<()> {
-        self.pacman(&[OsStr::new("-U"), path.as_os_str()]).await
+        self.pacman(&[OsStr::new("-U"), path.as_os_str(), OsStr::new("--needed")]).await
     }
 
     async fn install_remote(&self, package: &str) -> Result<()> {
-        self.pacman(&["-S", package]).await
+        self.pacman(&["-S", package, "--needed"]).await
     }
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
