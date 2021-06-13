@@ -63,10 +63,16 @@ impl Builder for BareBuilder {
         self.pacman(&[OsStr::new("-U"), path.as_os_str(), OsStr::new("--needed")]).await
     }
 
-    async fn install_remote(&self, package: &[&str]) -> Result<()> {
+    async fn install_remote(&self, packages: &[&str]) -> Result<()> {
         let mut args = vec!["-S"];
-        args.extend(package);
+        args.extend(packages);
         args.push("--needed");
+        self.pacman(&args).await
+    }
+
+    async fn remove(&self, packages: &[&str]) -> Result<()> {
+        let mut args = vec!["-R"];
+        args.extend(packages);
         self.pacman(&args).await
     }
 
