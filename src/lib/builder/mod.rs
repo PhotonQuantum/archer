@@ -13,7 +13,9 @@ type Result<T> = std::result::Result<T, BuildError>;
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BuildOptions {
     check: bool,
-    sign: bool
+    sign: bool,
+    skip_checksum: bool,
+    skip_pgp_check: bool,
 }
 
 #[async_trait]
