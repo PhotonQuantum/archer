@@ -9,11 +9,13 @@ use crate::error::{BuildError, CommandError, MakepkgError};
 use crate::utils::map_makepkg_code;
 
 use super::Result;
+use tokio::sync::Mutex;
 
 type IOResult<T> = std::result::Result<T, std::io::Error>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct BareBuilder {
+    pacman_lock: Mutex<()>,
     options: BuildOptions,
 }
 
@@ -24,11 +26,13 @@ impl BareBuilder {
 
     fn new_with_options(options: &BuildOptions) -> Self {
         Self {
+            pacman_lock: Default::default(),
             options: options.clone(),
         }
     }
 
     async fn pacman<S: AsRef<OsStr>>(&self, args: &[S]) -> Result<()> {
+        let _lock = self.pacman_lock.lock().await;
         let mut cmd = Command::new("sudo");
         cmd.arg("pacman");
         for arg in args {
