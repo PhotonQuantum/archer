@@ -50,7 +50,7 @@ impl BareBuilder {
         }
     }
 
-    async fn pacman<S: AsRef<OsStr>>(&self, args: &[S]) -> Result<()> {
+    async fn pacman<S: AsRef<OsStr>, T: IntoIterator<Item=S> + Send>(&self, args: T) -> Result<()> {
         let _lock = self.pacman_lock.lock().await;
         let mut cmd = Command::new("sudo");
         cmd.arg("pacman");
@@ -61,10 +61,10 @@ impl BareBuilder {
         let mut child = cmd.spawn()?;
 
         let status = child.wait().await?;
-        if !status.success() {
-            Err(BuildError::CommandError(CommandError::Pacman))
-        } else {
+        if status.success() {
             Ok(())
+        } else {
+            Err(BuildError::CommandError(CommandError::Pacman))
         }
     }
 }
@@ -154,8 +154,7 @@ impl Builder for BareBuilder {
         status
             .code()
             .map_or(Some(MakepkgError::Signal), map_makepkg_code)
-            .map(|e| Err(CommandError::Makepkg(e)))
-            .unwrap_or(Ok(()))?;
+            .map_or(Ok(()), |e| Err(CommandError::Makepkg(e)))?;
 
         if self.options.build_as.is_some() {
             let status = Command::new("sudo")

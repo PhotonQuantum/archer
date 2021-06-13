@@ -39,7 +39,7 @@ pub fn unix_timestamp() -> u128 {
         .as_millis()
 }
 
-pub fn map_makepkg_code(status_code: i32) -> Option<MakepkgError> {
+pub const fn map_makepkg_code(status_code: i32) -> Option<MakepkgError> {
     match status_code {
         0 | 13 => None,
         2 => Some(MakepkgError::Configuration),
