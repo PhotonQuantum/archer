@@ -24,6 +24,6 @@ pub trait Builder {
     async fn teardown(&self) -> Result<()>;
     async fn sync_system(&self) -> Result<()>;
     async fn install_local(&self, path: &Path) -> Result<()>;
-    async fn install_remote(&self, package: &str) -> Result<()>;
+    async fn install_remote(&self, package: &[&str]) -> Result<()>;
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>>;
 }
