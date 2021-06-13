@@ -106,6 +106,7 @@ impl Builder for BareBuilder {
             let mut cmd = Command::new("sudo");
             cmd.arg("-u");
             cmd.arg(user);
+            cmd.arg("makepkg");
             cmd
         } else {
             Command::new("makepkg")
