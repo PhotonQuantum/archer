@@ -75,9 +75,7 @@ jobs:
       - name: Populate Pacman Database️️ 🛎️
         run: pacman -Syu --noconfirm
       - name: Create test user 🚀
-        run: |
-          useradd -m archer
-          bash -c "echo 'archer ALL=(ALL) NOPASSWD: ALL'" > /etc/sudoers.d/archer
+        run: useradd -m archer
       - uses: actions-rs/cargo@v1
         name: Running Tests 🚀
         with:

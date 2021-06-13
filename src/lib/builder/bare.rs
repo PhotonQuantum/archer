@@ -111,6 +111,24 @@ impl Builder for BareBuilder {
         } else {
             Command::new("makepkg")
         };
+
+        let output_dir = path.join("output");
+        if !output_dir.exists() {
+            tokio::fs::create_dir(&output_dir).await?;
+            if let Some(user) = &self.options.build_as {
+                let status = Command::new("chown")
+                    .arg("-R")
+                    .arg(user)
+                    .arg(&path)
+                    .spawn()?
+                    .wait()
+                    .await?;
+                if !status.success() {
+                    return Err(BuildError::CommandError(CommandError::Chown));
+                }
+            }
+        }
+
         cmd.current_dir(path).env("PKGDEST", path.join("output"));
 
         if self.options.base.check {
@@ -135,7 +153,20 @@ impl Builder for BareBuilder {
             .map(|e| Err(CommandError::Makepkg(e)))
             .unwrap_or(Ok(()))?;
 
-        Ok(std::fs::read_dir(path.join("output"))?
+        if self.options.build_as.is_some() {
+            let status = Command::new("chown")
+                .arg("-R")
+                .arg(users::get_current_uid().to_string())
+                .arg(&output_dir)
+                .spawn()?
+                .wait()
+                .await?;
+            if !status.success() {
+                return Err(BuildError::CommandError(CommandError::Chown));
+            }
+        }
+
+        Ok(std::fs::read_dir(&output_dir)?
             .map(|entry| entry.map(|entry| entry.path()))
             .collect::<IOResult<Vec<_>>>()?)
     }

@@ -46,6 +46,8 @@ pub enum CommandError {
     Pacman,
     #[error("makepkg: {0}")]
     Makepkg(MakepkgError),
+    #[error("chown")]
+    Chown,
 }
 
 #[derive(Debug, Error)]

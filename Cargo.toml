@@ -53,6 +53,7 @@ rusoto_s3 = "0.46"
 futures = "0.3"
 bytes = "1.0"
 regex = "1.5"
+users = "0.11"
 
 [dev-dependencies]
 rstest = "0.9"
