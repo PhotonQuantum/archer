@@ -78,7 +78,7 @@ impl Builder for BareBuilder {
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
         let mut cmd = Command::new("makepkg");
-        cmd.current_dir(path).env("BUILDDIR", "output");
+        cmd.current_dir(path).env("PKGDEST", path.join("output"));
 
         if self.options.check {
             cmd.arg("--check");
