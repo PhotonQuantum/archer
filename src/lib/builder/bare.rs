@@ -161,7 +161,11 @@ impl Builder for BareBuilder {
             let status = Command::new("sudo")
                 .arg("chown")
                 .arg("-R")
-                .arg(format!("{}:{}", users::get_current_uid().to_string(), users::get_current_gid().to_string()))
+                .arg(format!(
+                    "{}:{}",
+                    users::get_current_uid().to_string(),
+                    users::get_current_gid().to_string()
+                ))
                 .arg(&output_dir)
                 .spawn()?
                 .wait()
