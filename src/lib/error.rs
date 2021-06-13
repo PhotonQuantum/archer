@@ -9,6 +9,14 @@ use crate::types::*;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
+pub enum BuildError {
+    #[error("io error: {0}")]
+    IOError(#[from] std::io::Error),
+    #[error("command execution failure")]
+    CommandError
+}
+
+#[derive(Debug, Error)]
 pub enum S3Error {
     #[error("get error: {0}")]
     GetError(#[from] rusoto_core::RusotoError<GetObjectError>),
@@ -84,4 +92,6 @@ pub enum Error {
     PackageError,
     #[error("storage error: {0}")]
     StorageError(#[from] StorageError),
+    #[error("build error: {0}")]
+    BuildError(#[from] BuildError),
 }

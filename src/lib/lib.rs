@@ -20,6 +20,7 @@ pub use utils::load_alpm;
 mod tests;
 
 pub mod alpm;
+pub mod builder;
 pub mod consts;
 pub mod database;
 pub mod error;
