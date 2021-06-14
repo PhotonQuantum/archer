@@ -19,6 +19,9 @@ pub use utils::load_alpm;
 #[macro_use]
 mod tests;
 
+#[macro_use]
+mod utils;
+
 pub mod alpm;
 pub mod builder;
 pub mod consts;
@@ -30,4 +33,3 @@ pub mod repository;
 pub mod resolver;
 pub mod storage;
 pub mod types;
-mod utils;

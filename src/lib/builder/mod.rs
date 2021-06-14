@@ -15,15 +15,6 @@ mod tests;
 type Result<T> = std::result::Result<T, BuildError>;
 type IOResult<T> = std::result::Result<T, std::io::Error>;
 
-macro_rules! setter_copy {
-    ($name: ident, $tyty: ty) => {
-        pub fn $name(mut self, $name: $tyty) -> Self {
-            self.$name = $name;
-            self
-        }
-    };
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BuildOptions {
     check: bool,

@@ -6,11 +6,11 @@ use alpm::Alpm;
 
 use crate::consts::*;
 use crate::error::{MakepkgError, Result};
-use crate::parser::PacmanParser;
+use crate::parser::PacmanConf;
 
 pub fn load_alpm() -> Result<Alpm> {
     let alpm = Alpm::new(ROOT_PATH, PACMAN_DB_PATH)?;
-    let sync_dbs = PacmanParser::with_default()?.sync_dbs();
+    let sync_dbs = PacmanConf::with_default()?.sync_dbs();
     for db in sync_dbs {
         alpm.register_syncdb(db.name, db.sig_level)?;
     }
@@ -55,4 +55,24 @@ pub const fn map_makepkg_code(status_code: i32) -> Option<MakepkgError> {
         16 => Some(MakepkgError::SignFailure),
         _ => Some(MakepkgError::Unknown),
     }
+}
+
+#[macro_export]
+macro_rules! setter_copy {
+    ($name: ident, $tyty: ty) => {
+        pub fn $name(mut self, $name: $tyty) -> Self {
+            self.$name = $name;
+            self
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! setter_option_clone {
+    ($name: ident, $tyty: ty) => {
+        pub fn $name(mut self, $name: &$tyty) -> Self {
+            self.$name = Some($name.clone());
+            self
+        }
+    };
 }
