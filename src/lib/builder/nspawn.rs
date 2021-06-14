@@ -3,12 +3,12 @@ use std::process::Stdio;
 
 use async_trait::async_trait;
 
-use crate::error::{BuildError, CommandError, GpgError};
+use crate::error::{CommandError, GpgError};
 use crate::parser::PacmanConf;
 use crate::parser::GLOBAL_CONFIG;
 use crate::utils::map_gpg_code;
 
-use super::{BuildOptions, Builder, IOResult, Result};
+use super::{BuildOptions, Builder, Result};
 
 #[derive(Clone)]
 pub struct NspawnBuildOptions {
@@ -41,7 +41,10 @@ impl NspawnBuilder {
     }
 
     fn pacman_conf(&self) -> &PacmanConf {
-        self.options.pacman_conf.as_ref().map_or(&GLOBAL_CONFIG, |conf| conf)
+        self.options
+            .pacman_conf
+            .as_ref()
+            .map_or(&GLOBAL_CONFIG, |conf| conf)
     }
 
     fn set_stdout(&self, cmd: &mut tokio::process::Command) {
