@@ -123,7 +123,7 @@ async fn bare_cleanup(builder: &BareBuilder) {
 async fn must_bare_build() {
     if option_env!("no_sudo").is_some() {
         println!("must_bare_build skipped");
-        return
+        return;
     }
     wait_pacman_lock();
     let builder = setup_bare_builder();

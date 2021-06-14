@@ -50,7 +50,10 @@ impl BareBuilder {
         }
     }
 
-    async fn pacman<S: AsRef<OsStr>, T: IntoIterator<Item=S> + Send>(&self, args: T) -> Result<()> {
+    async fn pacman<S: AsRef<OsStr>, T: IntoIterator<Item = S> + Send>(
+        &self,
+        args: T,
+    ) -> Result<()> {
         let _lock = self.pacman_lock.lock().await;
         let mut cmd = Command::new("sudo");
         cmd.arg("pacman");
