@@ -1,6 +1,6 @@
 use alpm::SigLevel;
 
-use crate::parser::{PacmanConfCtx, PacmanParser, SyncDB};
+use crate::parser::{PacmanConf, PacmanConfCtx, SyncDB};
 
 #[test]
 fn must_parse_pacman() {
@@ -50,7 +50,7 @@ fn must_parse_pacman() {
     ];
 
     let parser =
-        PacmanParser::with_pacman_conf(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
+        PacmanConf::with_pacman_conf(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
             .expect("unable to parse config");
     let dbs = parser.sync_dbs();
     assert_eq!(dbs, expect_sync_dbs, "sync dbs mismatch");
@@ -60,7 +60,7 @@ fn must_parse_pacman() {
     assert_eq!(parser.option("LogFile"), Some("/var/log/pacman_archer.log"));
     assert_eq!(parser.option("RootDir"), Some("/"));
 
-    let parser_with_root = PacmanParser::with_pacman_conf(
+    let parser_with_root = PacmanConf::with_pacman_conf(
         &PacmanConfCtx::new()
             .path("tests/pacman_conf/pacman.conf")
             .root("/archer"),

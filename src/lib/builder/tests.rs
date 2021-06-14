@@ -1,18 +1,26 @@
 use fs_extra;
 use fs_extra::dir::CopyOptions;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 
-use crate::builder::{BareBuildOptions, BareBuilder, BuildOptions, Builder};
+use crate::builder::{
+    BareBuildOptions, BareBuilder, BuildOptions, Builder, NspawnBuildOptions, NspawnBuilder,
+};
 use crate::tests::*;
 
 fn setup_bare_builder() -> BareBuilder {
-    let options = BareBuildOptions::new(&BuildOptions::new());
+    let options = BareBuildOptions::new(&BuildOptions::new().verbose(true));
     let options = if let Some(user) = option_env!("BUILD_USER") {
         options.build_as(user)
     } else {
         options
     };
     BareBuilder::new_with_options(&options)
+}
+
+fn setup_nspawn_builder() -> (TempDir, NspawnBuilder) {
+    let working_dir = tempdir().expect("unable to create working dir");
+    let options = NspawnBuildOptions::new(&BuildOptions::new().verbose(true), working_dir.path());
+    (working_dir, NspawnBuilder::new(&options))
 }
 
 async fn build_install_a(builder: &impl Builder) {
@@ -132,4 +140,14 @@ async fn must_bare_build() {
     build_install_b(&builder).await;
     must_b();
     bare_cleanup(&builder).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 6)]
+async fn must_nspawn_build() {
+    if option_env!("no_sudo").is_some() {
+        println!("must_bare_build skipped");
+        return;
+    }
+    let (_working_dir, builder) = setup_nspawn_builder();
+    builder.setup().await.expect("unable to setup")
 }

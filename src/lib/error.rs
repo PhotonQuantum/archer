@@ -9,6 +9,16 @@ use crate::types::*;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Eq, PartialEq, Error)]
+pub enum GpgError {
+    #[error("Unknown fatal error")]
+    Unknown,
+    #[error("At least a signature was bad")]
+    BadSignature,
+    #[error("Interrupted by signal")]
+    Signal,
+}
+
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum MakepkgError {
     #[error("Unknown cause of failure")]
     Unknown,
@@ -48,6 +58,10 @@ pub enum CommandError {
     Makepkg(MakepkgError),
     #[error("chown")]
     Chown,
+    #[error("gpg: {0}")]
+    Gpg(GpgError),
+    #[error("pacman-key")]
+    PacmanKey,
 }
 
 #[derive(Debug, Error)]

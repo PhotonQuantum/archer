@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use async_trait::async_trait;
 use tokio::process::Command;
@@ -58,6 +59,10 @@ impl BareBuilder {
         cmd.arg("--noconfirm");
         for arg in args {
             cmd.arg(arg);
+        }
+        if !self.options.base.verbose {
+            cmd.stdout(Stdio::null());
+            cmd.stderr(Stdio::null());
         }
         let mut child = cmd.spawn()?;
 
@@ -147,6 +152,10 @@ impl Builder for BareBuilder {
         }
         if self.options.base.skip_pgp_check {
             cmd.arg("--skippgpcheck");
+        }
+        if !self.options.base.verbose {
+            cmd.stdout(Stdio::null());
+            cmd.stderr(Stdio::null());
         }
 
         let mut child = cmd.spawn()?;

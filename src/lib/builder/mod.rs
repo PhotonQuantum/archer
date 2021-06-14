@@ -21,6 +21,7 @@ pub struct BuildOptions {
     sign: bool,
     skip_checksum: bool,
     skip_pgp_check: bool,
+    verbose: bool,
 }
 
 impl BuildOptions {
@@ -31,6 +32,7 @@ impl BuildOptions {
     setter_copy!(sign, bool);
     setter_copy!(skip_checksum, bool);
     setter_copy!(skip_pgp_check, bool);
+    setter_copy!(verbose, bool);
 }
 
 #[async_trait]

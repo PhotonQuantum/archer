@@ -33,7 +33,8 @@ impl PacmanConfCtx {
     }
 }
 
-pub struct PacmanParser {
+#[derive(Clone)]
+pub struct PacmanConf {
     config: Ini,
 }
 
@@ -114,7 +115,7 @@ fn parse_siglevel<'a>(content: impl IntoIterator<Item = &'a str>) -> Option<SigL
     }
 }
 
-impl PacmanParser {
+impl PacmanConf {
     pub fn with_default() -> Result<Self> {
         Self::with_pacman_conf(&PacmanConfCtx::default())
     }
