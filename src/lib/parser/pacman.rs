@@ -145,6 +145,12 @@ impl PacmanParser {
         })
     }
 
+    pub fn option(&self, field: &str) -> Option<&str> {
+        self.config
+            .section(Some("options"))
+            .and_then(|options| options.get(field))
+    }
+
     pub fn sync_dbs(&self) -> Vec<SyncDB> {
         let global_siglevel = self
             .config

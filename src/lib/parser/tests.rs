@@ -12,7 +12,7 @@ fn must_parse_pacman() {
             format!("https://mirror.rackspace.com/archlinux/{}/os/x86_64", repo),
         ]
     };
-    let expect = vec![
+    let expect_sync_dbs = vec![
         SyncDB {
             name: String::from("core"),
             sig_level,
@@ -53,5 +53,18 @@ fn must_parse_pacman() {
         PacmanParser::with_pacman_conf(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
             .expect("unable to parse config");
     let dbs = parser.sync_dbs();
-    assert_eq!(dbs, expect, "sync dbs mismatch");
+    assert_eq!(dbs, expect_sync_dbs, "sync dbs mismatch");
+
+    assert_eq!(parser.option("nonsense"), None);
+    assert_eq!(parser.option("GPGDir"), Some("/etc/pacman.d/gnupg/"));
+    assert_eq!(parser.option("LogFile"), Some("/var/log/pacman_archer.log"));
+    assert_eq!(parser.option("RootDir"), Some("/"));
+
+    let parser_with_root = PacmanParser::with_pacman_conf(
+        &PacmanConfCtx::new()
+            .path("tests/pacman_conf/pacman.conf")
+            .root("/archer"),
+    )
+    .expect("unable to parse config");
+    assert_eq!(parser_with_root.option("RootDir"), Some("/archer"));
 }
