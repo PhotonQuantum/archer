@@ -9,9 +9,7 @@ use crate::builder::{BuildOptions, Builder};
 use crate::error::{BuildError, CommandError, MakepkgError};
 use crate::utils::map_makepkg_code;
 
-use super::Result;
-
-type IOResult<T> = std::result::Result<T, std::io::Error>;
+use super::{IOResult, Result};
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct BareBuildOptions {

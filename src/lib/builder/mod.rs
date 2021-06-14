@@ -5,12 +5,15 @@ use async_trait::async_trait;
 use crate::error::BuildError;
 
 pub use self::bare::*;
+pub use self::nspawn::*;
 
 mod bare;
+mod nspawn;
 #[cfg(test)]
 mod tests;
 
 type Result<T> = std::result::Result<T, BuildError>;
+type IOResult<T> = std::result::Result<T, std::io::Error>;
 
 macro_rules! setter_copy {
     ($name: ident, $tyty: ty) => {
