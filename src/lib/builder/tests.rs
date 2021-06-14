@@ -129,7 +129,7 @@ async fn bare_cleanup(builder: &BareBuilder) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 6)]
 async fn must_bare_build() {
-    if option_env!("no_sudo").is_some() {
+    if option_env!("NO_SUDO").is_some() {
         println!("must_bare_build skipped");
         return;
     }
@@ -144,10 +144,23 @@ async fn must_bare_build() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 6)]
 async fn must_nspawn_build() {
-    if option_env!("no_sudo").is_some() {
+    if option_env!("NO_SUDO").is_some() {
         println!("must_bare_build skipped");
         return;
     }
     let (_working_dir, builder) = setup_nspawn_builder();
     builder.setup().await.expect("unable to setup")
+}
+
+#[tokio::test]
+async fn must_unshare() {
+    if option_env!("NO_SUDO").is_some() {
+        println!("must_bare_build skipped");
+        return;
+    }
+    assert_eq!(
+        NspawnBuilder::test_unshare().await,
+        option_env!("NO_UNSHARE").is_none(),
+        "unshare mismatch"
+    );
 }

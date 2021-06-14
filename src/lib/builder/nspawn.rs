@@ -54,6 +54,25 @@ impl NspawnBuilder {
         }
     }
 
+    pub(crate) async fn test_unshare() -> bool {
+        let mut child = if let Ok(child) = tokio::process::Command::new("sudo")
+            .args(&["unshare", "--fork", "--pid", "bash", "-c", "exit"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            child
+        } else {
+            return false;
+        };
+
+        child
+            .wait()
+            .await
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
     async fn copy_hostconf(&self) -> Result<()> {
         let working_dir = &self.options.working_dir;
 
@@ -61,10 +80,15 @@ impl NspawnBuilder {
         let dest_gpg_dir = working_dir.join("etc/pacman.d/gnupg");
         tokio::fs::create_dir_all(&dest_gpg_dir).await?;
 
-        let mut gpg_cmd = tokio::process::Command::new("sudo");
+        let mut gpg_cmd = if Self::test_unshare().await {
+            let mut cmd = tokio::process::Command::new("sudo");
+            cmd.args(&["unshare", "--fork", "--pid", "gpg"]);
+            cmd
+        } else {
+            tokio::process::Command::new("gpg")
+        };
         gpg_cmd
-            .args(&["unshare", "--fork", "--pid"])
-            .args(&["gpg", "--homedir"])
+            .arg("--homedir")
             .arg(&dest_gpg_dir)
             .args(&["--no-permission-warning", "--quiet", "--batch", "--import"])
             .args(&["--import-options", "import-local-sigs"])

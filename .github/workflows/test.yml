@@ -49,6 +49,7 @@ jobs:
     env:
       S3_ENDPOINT: http://s3_mock:9090
       BUILD_USER: archer
+      NO_UNSHARE: 1
     services:
       s3_mock:
         image: adobe/s3mock
