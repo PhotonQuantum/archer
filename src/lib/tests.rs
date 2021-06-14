@@ -210,7 +210,7 @@ macro_rules! asrt {
 }
 
 pub fn wait_pacman_lock() {
-    let lock_path = PathBuf::from_str("/var/lib/pacman/db.lck").unwrap();
+    let lock_path = PathBuf::from("/var/lib/pacman/db.lck");
     while lock_path.exists() {
         std::thread::sleep(Duration::from_secs(1));
     }

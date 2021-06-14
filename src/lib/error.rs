@@ -8,7 +8,7 @@ use crate::types::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum MakepkgError {
     #[error("Unknown cause of failure")]
     Unknown,
@@ -38,7 +38,7 @@ pub enum MakepkgError {
     Signal,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum CommandError {
     #[error("unknown command")]
     Unknown,
@@ -88,10 +88,14 @@ pub enum StorageError {
     JSONError(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Eq, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("pacman - {0}")]
+    #[error("pacman: {0}")]
     PacmanError(String),
+    #[error("command execution failure: {0}")]
+    CommandError(CommandError),
+    #[error("io error: {0}")]
+    IOError(#[from] std::io::Error),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Error)]

@@ -2,7 +2,6 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use pkginfo::errors::Error as PkgInfoError;
 use pkginfo::PkgInfo;
@@ -40,8 +39,7 @@ impl BuildTarget {
 
     // append package to target
     pub fn append_pkg(&mut self, desc: &PacmanEntry, files: &[String]) -> Result<()> {
-        let dir_name =
-            PathBuf::from_str(format!("{}-{}", desc.name, desc.version).as_str()).unwrap();
+        let dir_name = PathBuf::from(format!("{}-{}", desc.name, desc.version).as_str());
         let desc_content = archlinux_repo_parser::to_string(desc).unwrap(); // TODO error handling
         let files_content = format!("%FILES%\n{}", files.join("\n"));
         match self {

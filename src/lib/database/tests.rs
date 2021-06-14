@@ -1,7 +1,6 @@
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use rstest::rstest;
 
@@ -16,7 +15,7 @@ use super::decompressor::ArchiveReader;
 #[case("test.tar.zst")]
 fn must_decompress(#[case] name: &str) {
     println!("decompressing {}", name);
-    let path = PathBuf::from_str("tests/archives/").unwrap().join(name);
+    let path = PathBuf::from("tests/archives/").join(name);
     let archive = ArchiveReader::from_filepath(&path).expect("unable to read archive");
     let mut tar = archive.into_tar();
     let mut entries = tar.entries().expect("unable to read entries");
