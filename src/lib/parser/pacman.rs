@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use regex::{NoExpand, Regex};
 
 use crate::error::ParseError;
+use crate::consts::PACMAN_CONF_PATH;
 
 type Result<T> = std::result::Result<T, ParseError>;
 
@@ -44,6 +45,7 @@ impl PacmanConfCtx {
 pub struct PacmanConf {
     inner: Ini,
     sync_dbs: Vec<SyncDB>,
+    path: PathBuf
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -140,22 +142,29 @@ impl PacmanConf {
             cmd.arg("-R").arg(root);
         }
 
-        let raw_conf = cmd.output()?;
+        let output = cmd.output()?;
+        let raw_conf = std::str::from_utf8(&*output.stdout)
+            .map_err(|_| ParseError::PacmanError(String::from("utf8 parse error")))?;
 
-        Self::with_str(
-            std::str::from_utf8(&*raw_conf.stdout)
-                .map_err(|_| ParseError::PacmanError(String::from("utf8 parse error")))?,
-        )
-    }
-
-    pub fn with_str(content: impl AsRef<str>) -> Result<Self> {
-        let ini = Ini::load_from_str(content.as_ref())
+        let ini = Ini::load_from_str(raw_conf)
             .map_err(|e| ParseError::PacmanError(e.to_string()))?;
         let sync_dbs = PacmanConf::parse_sync_dbs(&ini);
+
+        let path = if let Some(path) = &ctx.path {
+            path.clone()
+        } else {
+            PathBuf::from(PACMAN_CONF_PATH)
+        };
+
         Ok(Self {
             inner: ini,
             sync_dbs,
+            path
         })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
     }
 
     pub fn option(&self, field: &str) -> Option<&str> {
