@@ -1,11 +1,15 @@
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::Arc;
 
+use async_file_lock::FileLock;
 use async_trait::async_trait;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
 
 use crate::consts::*;
-use crate::error::{CommandError, GpgError};
+use crate::error::{BuildError, CommandError, GpgError};
 use crate::parser::PacmanConf;
 use crate::parser::GLOBAL_CONFIG;
 use crate::utils::map_gpg_code;
@@ -40,12 +44,14 @@ impl NspawnBuildOptions {
 #[derive(Clone)]
 pub struct NspawnBuilder {
     options: NspawnBuildOptions,
+    workdir_lock: Arc<Mutex<Option<FileLock>>>,
 }
 
 impl NspawnBuilder {
     pub fn new(options: &NspawnBuildOptions) -> Self {
         Self {
             options: options.clone(),
+            workdir_lock: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -87,6 +93,31 @@ impl NspawnBuilder {
             .await
             .map(|status| status.success())
             .unwrap_or(false)
+    }
+
+    async fn lock_workdir(&self) -> Result<()> {
+        tokio::fs::create_dir_all(&self.options.working_dir).await?;
+
+        let mut lock_file = FileLock::create(self.options.working_dir.join(".lock"))
+            .await
+            .map_err(|_| BuildError::LockError)?;
+        lock_file
+            .lock_exclusive()
+            .await
+            .map_err(|_| BuildError::LockError)?;
+
+        *self.workdir_lock.lock().await.deref_mut() = Some(lock_file);
+        Ok(())
+    }
+
+    async fn unlock_workdir(&self) {
+        let mut maybe_lock_file = self.workdir_lock.lock().await;
+        if let Some(lock_file) = maybe_lock_file.deref_mut() {
+            lock_file.unlock();
+        }
+        if maybe_lock_file.is_some() {
+            *maybe_lock_file = None;
+        }
     }
 
     async fn copy_hostconf(&self) -> Result<()> {

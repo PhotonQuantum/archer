@@ -70,6 +70,8 @@ pub enum BuildError {
     IOError(#[from] std::io::Error),
     #[error("command execution failure: {0}")]
     CommandError(#[from] CommandError),
+    #[error("unable to acquire lock")]
+    LockError,
 }
 
 #[derive(Debug, Error)]
