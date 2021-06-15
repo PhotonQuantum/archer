@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use fs_extra;
 use fs_extra::dir::CopyOptions;
 use tempfile::{tempdir, TempDir};
@@ -170,9 +172,10 @@ async fn must_unshare() {
     );
 }
 
-#[tokio::test]
-async fn must_lock() {
+#[test]
+fn must_lock() {
     let (_working_dir, builder) = setup_nspawn_builder();
-    builder.lock_workdir().await.expect("unable to lock dir");
-    builder.unlock_workdir().await
+    builder.lock_workdir().expect("unable to lock dir");
+    std::thread::sleep(Duration::from_secs(1));
+    builder.unlock_workdir().expect("unable to unlock dir");
 }

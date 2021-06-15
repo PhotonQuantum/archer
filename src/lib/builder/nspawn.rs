@@ -1,12 +1,11 @@
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use async_file_lock::FileLock;
 use async_trait::async_trait;
+use fs3::FileExt;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
 
 use crate::consts::*;
 use crate::error::{BuildError, CommandError, GpgError};
@@ -44,7 +43,7 @@ impl NspawnBuildOptions {
 #[derive(Clone)]
 pub struct NspawnBuilder {
     options: NspawnBuildOptions,
-    workdir_lock: Arc<Mutex<Option<FileLock>>>,
+    workdir_lock: Arc<Mutex<Option<std::fs::File>>>,
 }
 
 impl NspawnBuilder {
@@ -95,29 +94,28 @@ impl NspawnBuilder {
             .unwrap_or(false)
     }
 
-    pub(crate) async fn lock_workdir(&self) -> Result<()> {
-        tokio::fs::create_dir_all(&self.options.working_dir).await?;
+    pub(crate) fn lock_workdir(&self) -> Result<()> {
+        std::fs::create_dir_all(&self.options.working_dir)?;
 
-        let mut lock_file = FileLock::create(self.options.working_dir.join(".lock"))
-            .await
+        let lock_file = std::fs::File::create(self.options.working_dir.join(".lock"))
             .map_err(|_| BuildError::LockError)?;
         lock_file
             .lock_exclusive()
-            .await
             .map_err(|_| BuildError::LockError)?;
 
-        *self.workdir_lock.lock().await.deref_mut() = Some(lock_file);
+        *self.workdir_lock.lock().unwrap().deref_mut() = Some(lock_file);
         Ok(())
     }
 
-    pub(crate) async fn unlock_workdir(&self) {
-        let mut maybe_lock_file = self.workdir_lock.lock().await;
+    pub(crate) fn unlock_workdir(&self) -> Result<()> {
+        let mut maybe_lock_file = self.workdir_lock.lock().unwrap();
         if let Some(lock_file) = maybe_lock_file.deref_mut() {
-            lock_file.unlock();
+            lock_file.unlock()?;
         }
         if maybe_lock_file.is_some() {
             *maybe_lock_file = None;
         }
+        Ok(())
     }
 
     async fn copy_hostconf(&self) -> Result<()> {
