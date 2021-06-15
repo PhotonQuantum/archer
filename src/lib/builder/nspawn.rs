@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use fs3::FileExt;
 use tempfile::NamedTempFile;
-use tokio::io::AsyncWriteExt;
 
 use crate::consts::*;
 use crate::error::{BuildError, CommandError, GpgError};
@@ -111,7 +110,7 @@ impl NspawnBuilder {
 
     pub(crate) fn unlock_workdir(&self) -> Result<()> {
         let mut maybe_lock_file = self.workdir_lock.lock().unwrap();
-        if let Some(lock_file) = maybe_lock_file.deref_mut() {
+        if let Some(lock_file) = &mut *maybe_lock_file {
             lock_file.unlock()?;
         }
         if maybe_lock_file.is_some() {
@@ -122,8 +121,8 @@ impl NspawnBuilder {
 
     async fn sudo_cp(
         &self,
-        from: impl AsRef<Path>,
-        to: impl AsRef<Path>,
+        from: impl AsRef<Path> + Send + Sync,
+        to: impl AsRef<Path> + Send + Sync,
         recursive: bool,
     ) -> Result<()> {
         let mut cmd = tokio::process::Command::new("sudo");
