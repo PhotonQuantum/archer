@@ -4,3 +4,4 @@
 /output.dot
 /tests/output
 /tests/stream.test
+/reference/*
