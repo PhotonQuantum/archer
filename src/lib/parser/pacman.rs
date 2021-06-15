@@ -43,7 +43,7 @@ impl PacmanConfCtx {
 #[derive(Clone)]
 pub struct PacmanConf {
     inner: Ini,
-    pub sync_dbs: Vec<SyncDB>,
+    sync_dbs: Vec<SyncDB>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -125,11 +125,11 @@ fn parse_siglevel<'a>(content: impl IntoIterator<Item = &'a str>) -> Option<SigL
 }
 
 impl PacmanConf {
-    pub fn with_default() -> Result<Self> {
-        Self::with_pacman_conf(&PacmanConfCtx::default())
+    pub fn new() -> Result<Self> {
+        Self::with(&PacmanConfCtx::default())
     }
 
-    pub fn with_pacman_conf(ctx: &PacmanConfCtx) -> Result<Self> {
+    pub fn with(ctx: &PacmanConfCtx) -> Result<Self> {
         let mut cmd = std::process::Command::new("pacman-conf");
         if let Some(path) = &ctx.path {
             let canonical_path = path.canonicalize()?;
@@ -151,7 +151,7 @@ impl PacmanConf {
     pub fn with_str(content: impl AsRef<str>) -> Result<Self> {
         let ini = Ini::load_from_str(content.as_ref())
             .map_err(|e| ParseError::PacmanError(e.to_string()))?;
-        let sync_dbs = PacmanConf::sync_dbs(&ini);
+        let sync_dbs = PacmanConf::parse_sync_dbs(&ini);
         Ok(Self {
             inner: ini,
             sync_dbs,
@@ -165,7 +165,7 @@ impl PacmanConf {
     }
 
     pub fn host_mirrors(&self) -> Vec<String> {
-        self.sync_dbs
+        self.sync_dbs()
             .iter()
             .find(|db| db.name == "extra")
             .unwrap()
@@ -186,7 +186,11 @@ impl PacmanConf {
             .join("\n")
     }
 
-    fn sync_dbs(ini: &Ini) -> Vec<SyncDB> {
+    pub fn sync_dbs(&self) -> &[SyncDB] {
+        &self.sync_dbs
+    }
+
+    fn parse_sync_dbs(ini: &Ini) -> Vec<SyncDB> {
         let global_siglevel = ini
             .section(Some("options"))
             .map(|options| options.get_all("SigLevel"))

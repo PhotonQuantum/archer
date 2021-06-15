@@ -8,5 +8,5 @@ pub mod pacman;
 mod tests;
 
 lazy_static! {
-    pub static ref GLOBAL_CONFIG: PacmanConf = PacmanConf::with_default().unwrap();
+    pub static ref GLOBAL_CONFIG: PacmanConf = PacmanConf::new().unwrap();
 }

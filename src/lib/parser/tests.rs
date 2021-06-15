@@ -62,9 +62,9 @@ fn must_parse_pacman() {
     ];
 
     let parser =
-        PacmanConf::with_pacman_conf(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
+        PacmanConf::with(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
             .expect("unable to parse config");
-    let dbs = &parser.sync_dbs;
+    let dbs = parser.sync_dbs();
     assert_eq!(dbs, &expect_sync_dbs, "sync dbs mismatch");
 
     let mirrors = parser.host_mirrors();
@@ -77,7 +77,7 @@ fn must_parse_pacman() {
     assert_eq!(parser.option("LogFile"), Some("/var/log/pacman_archer.log"));
     assert_eq!(parser.option("RootDir"), Some("/"));
 
-    let parser_with_root = PacmanConf::with_pacman_conf(
+    let parser_with_root = PacmanConf::with(
         &PacmanConfCtx::new()
             .path("tests/pacman_conf/pacman.conf")
             .root("/archer"),
