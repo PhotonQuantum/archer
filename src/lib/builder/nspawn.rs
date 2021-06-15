@@ -117,16 +117,6 @@ impl NspawnBuilder {
             .map_or(Some(GpgError::Signal), map_gpg_code)
             .map_or(Ok(()), |e| Err(CommandError::Gpg(e)))?;
 
-        let mut key_init_cmd = tokio::process::Command::new("sudo");
-        key_init_cmd
-            .args(&["pacman-key", "--gpgdir"])
-            .arg(&dest_gpg_dir)
-            .arg("--init");
-        self.set_stdout(&mut key_init_cmd);
-        if !key_init_cmd.spawn()?.wait().await?.success() {
-            return Err(CommandError::PacmanKey.into());
-        }
-
         let mut key_trust_cmd = tokio::process::Command::new("sudo");
         key_trust_cmd
             .args(&["pacman-key", "--gpgdir"])
@@ -153,16 +143,18 @@ impl NspawnBuilder {
 
         // TODO sed cachedir
 
-        Ok(())
+        todo!()
     }
 }
 
 #[async_trait]
 impl Builder for NspawnBuilder {
     async fn setup(&self) -> Result<()> {
+        // TODO mkarchroot, makechrootpkg
+
         self.copy_hostconf().await?;
 
-        Ok(())
+        todo!()
     }
 
     async fn teardown(&self) -> Result<()> {

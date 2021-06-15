@@ -146,6 +146,7 @@ async fn must_nspawn_setup(builder: &NspawnBuilder) {
     builder.setup().await.expect("unable to setup");
 }
 
+#[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 6)]
 async fn must_nspawn_build() {
     if option_env!("NO_SUDO").is_some() {
