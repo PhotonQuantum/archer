@@ -35,7 +35,8 @@ impl PacmanConfCtx {
 
 #[derive(Clone)]
 pub struct PacmanConf {
-    config: Ini,
+    inner: Ini,
+    pub sync_dbs: Vec<SyncDB>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -43,6 +44,7 @@ pub struct SyncDB {
     pub name: String,
     pub sig_level: alpm::SigLevel,
     pub servers: Vec<String>,
+    pub usage: Vec<String>,
 }
 
 fn parse_siglevel<'a>(content: impl IntoIterator<Item = &'a str>) -> Option<SigLevel> {
@@ -140,43 +142,36 @@ impl PacmanConf {
     }
 
     pub fn with_str(content: impl AsRef<str>) -> Result<Self> {
+        let ini = Ini::load_from_str(content.as_ref())
+            .map_err(|e| ParseError::PacmanError(e.to_string()))?;
+        let sync_dbs = PacmanConf::sync_dbs(&ini);
         Ok(Self {
-            config: Ini::load_from_str(content.as_ref())
-                .map_err(|e| ParseError::PacmanError(e.to_string()))?,
+            inner: ini,
+            sync_dbs,
         })
     }
 
     pub fn option(&self, field: &str) -> Option<&str> {
-        self.config
+        self.inner
             .section(Some("options"))
             .and_then(|options| options.get(field))
     }
 
-    pub fn sync_dbs(&self) -> Vec<SyncDB> {
-        let global_siglevel = self
-            .config
+    fn sync_dbs(ini: &Ini) -> Vec<SyncDB> {
+        let global_siglevel = ini
             .section(Some("options"))
-            .map(|options| {
-                options
-                    .get_all("SigLevel")
-                    .flat_map(|field| field.split(' '))
-            })
+            .map(|options| options.get_all("SigLevel"))
             .and_then(parse_siglevel)
             .unwrap_or(SigLevel::USE_DEFAULT);
 
-        self.config
-            .sections()
+        ini.sections()
             .filter(|section| section.map(|name| name != "options").unwrap_or(false))
-            .map(|name| (name.unwrap(), self.config.section(name).unwrap()))
+            .map(|name| (name.unwrap(), ini.section(name).unwrap()))
             .map(|(name, section)| SyncDB {
                 name: name.to_string(),
-                sig_level: parse_siglevel(
-                    section
-                        .get_all("SigLevel")
-                        .flat_map(|field| field.split(' ')),
-                )
-                .unwrap_or(global_siglevel),
+                sig_level: parse_siglevel(section.get_all("SigLevel")).unwrap_or(global_siglevel),
                 servers: section.get_all("Server").map(ToString::to_string).collect(),
+                usage: section.get_all("Usage").map(ToString::to_string).collect(),
             })
             .collect()
     }

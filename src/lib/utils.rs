@@ -10,7 +10,7 @@ use crate::parser::PacmanConf;
 
 pub fn load_alpm() -> Result<Alpm> {
     let alpm = Alpm::new(ROOT_PATH, PACMAN_DB_PATH)?;
-    let sync_dbs = PacmanConf::with_default()?.sync_dbs();
+    let sync_dbs = PacmanConf::with_default()?.sync_dbs;
     for db in sync_dbs {
         alpm.register_syncdb(db.name, db.sig_level)?;
     }

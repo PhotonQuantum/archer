@@ -17,16 +17,19 @@ fn must_parse_pacman() {
             name: String::from("core"),
             sig_level,
             servers: servers("core"),
+            usage: vec![String::from("All")],
         },
         SyncDB {
             name: String::from("extra"),
             sig_level,
             servers: servers("extra"),
+            usage: vec![String::from("All")],
         },
         SyncDB {
             name: String::from("community"),
             sig_level,
             servers: servers("community"),
+            usage: vec![String::from("All")],
         },
         SyncDB {
             name: String::from("archlinuxcn"),
@@ -34,6 +37,7 @@ fn must_parse_pacman() {
             servers: vec![String::from(
                 "https://mirror.sjtu.edu.cn/archlinux-cn/x86_64",
             )],
+            usage: vec![String::from("All")],
         },
         SyncDB {
             name: String::from("custom"),
@@ -46,14 +50,15 @@ fn must_parse_pacman() {
                 | SigLevel::DATABASE_MARGINAL_OK
                 | SigLevel::DATABASE_UNKNOWN_OK,
             servers: vec![String::from("file:///home/custompkgs")],
+            usage: vec![String::from("All")],
         },
     ];
 
     let parser =
         PacmanConf::with_pacman_conf(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
             .expect("unable to parse config");
-    let dbs = parser.sync_dbs();
-    assert_eq!(dbs, expect_sync_dbs, "sync dbs mismatch");
+    let dbs = &parser.sync_dbs;
+    assert_eq!(dbs, &expect_sync_dbs, "sync dbs mismatch");
 
     assert_eq!(parser.option("nonsense"), None);
     assert_eq!(parser.option("GPGDir"), Some("/etc/pacman.d/gnupg/"));
