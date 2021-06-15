@@ -12,6 +12,13 @@ fn must_parse_pacman() {
             format!("https://mirror.rackspace.com/archlinux/{}/os/x86_64", repo),
         ]
     };
+
+    let expect_mirrors = vec![
+        "http://mirrors.evowise.com/archlinux/$repo/os/$arch",
+        "http://mirror.rackspace.com/archlinux/$repo/os/$arch",
+        "https://mirror.rackspace.com/archlinux/$repo/os/$arch",
+    ];
+    let expect_mirror_list = include_str!("../../../tests/pacman_conf/mirrorlist_clean");
     let expect_sync_dbs = vec![
         SyncDB {
             name: String::from("core"),
@@ -59,6 +66,11 @@ fn must_parse_pacman() {
             .expect("unable to parse config");
     let dbs = &parser.sync_dbs;
     assert_eq!(dbs, &expect_sync_dbs, "sync dbs mismatch");
+
+    let mirrors = parser.host_mirrors();
+    let mirror_list = parser.mirror_list();
+    assert_eq!(mirrors, expect_mirrors, "mirrors mismatch");
+    assert_eq!(mirror_list, expect_mirror_list, "mirror list mismatch");
 
     assert_eq!(parser.option("nonsense"), None);
     assert_eq!(parser.option("GPGDir"), Some("/etc/pacman.d/gnupg/"));

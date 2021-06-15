@@ -2,10 +2,17 @@ use std::path::{Path, PathBuf};
 
 use alpm::SigLevel;
 use ini::Ini;
+use itertools::Itertools;
+use lazy_static::lazy_static;
+use regex::{NoExpand, Regex};
 
 use crate::error::ParseError;
 
 type Result<T> = std::result::Result<T, ParseError>;
+
+lazy_static! {
+    static ref RE_EXTRA: Regex = Regex::new(r"extra/os/.*").unwrap();
+}
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub struct PacmanConfCtx {
@@ -155,6 +162,28 @@ impl PacmanConf {
         self.inner
             .section(Some("options"))
             .and_then(|options| options.get(field))
+    }
+
+    pub fn host_mirrors(&self) -> Vec<String> {
+        self.sync_dbs
+            .iter()
+            .find(|db| db.name == "extra")
+            .unwrap()
+            .servers
+            .iter()
+            .map(|server| {
+                RE_EXTRA
+                    .replace(server, NoExpand("$repo/os/$arch"))
+                    .to_string()
+            })
+            .collect()
+    }
+
+    pub fn mirror_list(&self) -> String {
+        self.host_mirrors()
+            .into_iter()
+            .map(|server| format!("Server = {}", server))
+            .join("\n")
     }
 
     fn sync_dbs(ini: &Ini) -> Vec<SyncDB> {
