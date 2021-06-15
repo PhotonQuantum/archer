@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use async_trait::async_trait;
+use tokio::io::AsyncWriteExt;
 
+use crate::consts::*;
 use crate::error::{CommandError, GpgError};
 use crate::parser::PacmanConf;
 use crate::parser::GLOBAL_CONFIG;
@@ -15,6 +17,7 @@ pub struct NspawnBuildOptions {
     base: BuildOptions,
     working_dir: PathBuf,
     pacman_conf: Option<PacmanConf>,
+    makepkg_conf: Option<PathBuf>,
 }
 
 impl NspawnBuildOptions {
@@ -23,9 +26,15 @@ impl NspawnBuildOptions {
             base: base_option.clone(),
             working_dir: working_dir.as_ref().to_path_buf(),
             pacman_conf: None,
+            makepkg_conf: None,
         }
     }
     setter_option_clone!(pacman_conf, PacmanConf);
+
+    pub fn makepkg_conf(mut self, makepkg_conf: impl AsRef<Path>) -> Self {
+        self.makepkg_conf = Some(makepkg_conf.as_ref().to_path_buf());
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -45,6 +54,13 @@ impl NspawnBuilder {
             .pacman_conf
             .as_ref()
             .map_or(&GLOBAL_CONFIG, |conf| conf)
+    }
+
+    fn makepkg_conf(&self) -> PathBuf {
+        self.options
+            .makepkg_conf
+            .as_ref()
+            .map_or(PathBuf::from(MAKEPKG_CONF_PATH), Clone::clone)
     }
 
     fn set_stdout(&self, cmd: &mut tokio::process::Command) {
@@ -75,8 +91,10 @@ impl NspawnBuilder {
 
     async fn copy_hostconf(&self) -> Result<()> {
         let working_dir = &self.options.working_dir;
+        let pacman_conf = self.pacman_conf();
+        let makepkg_conf = self.makepkg_conf();
 
-        let src_gpg_dir = PathBuf::from(self.pacman_conf().option("GPGDir").unwrap());
+        let src_gpg_dir = PathBuf::from(pacman_conf.option("GPGDir").unwrap());
         let dest_gpg_dir = working_dir.join("etc/pacman.d/gnupg");
         tokio::fs::create_dir_all(&dest_gpg_dir).await?;
 
@@ -120,7 +138,16 @@ impl NspawnBuilder {
             return Err(CommandError::PacmanKey.into());
         }
 
-        // TODO mirrorlist, pacman.conf, makepkg.conf
+        let dest_mirror_list = working_dir.join("etc/pacman.d/mirrorlist");
+        let dest_pac_conf = working_dir.join("etc/pacman.conf");
+        let dest_makepkg_conf = working_dir.join("etc/makepkg.conf");
+        tokio::fs::create_dir_all(dest_mirror_list.parent().unwrap()).await?;
+        tokio::fs::File::create(&dest_mirror_list)
+            .await?
+            .write_all(pacman_conf.mirror_list().as_ref())
+            .await?;
+        tokio::fs::copy(pacman_conf.path(), &dest_pac_conf).await?;
+        tokio::fs::copy(&makepkg_conf, &dest_makepkg_conf).await?;
 
         // TODO files
 

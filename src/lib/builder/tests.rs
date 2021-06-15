@@ -142,6 +142,10 @@ async fn must_bare_build() {
     bare_cleanup(&builder).await;
 }
 
+async fn must_nspawn_setup(builder: &NspawnBuilder) {
+    builder.setup().await.expect("unable to setup");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 6)]
 async fn must_nspawn_build() {
     if option_env!("NO_SUDO").is_some() {
@@ -149,7 +153,7 @@ async fn must_nspawn_build() {
         return;
     }
     let (_working_dir, builder) = setup_nspawn_builder();
-    builder.setup().await.expect("unable to setup")
+    must_nspawn_setup(&builder).await;
 }
 
 #[tokio::test]

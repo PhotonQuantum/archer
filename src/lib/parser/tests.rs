@@ -61,9 +61,8 @@ fn must_parse_pacman() {
         },
     ];
 
-    let parser =
-        PacmanConf::with(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
-            .expect("unable to parse config");
+    let parser = PacmanConf::with(&PacmanConfCtx::new().path("tests/pacman_conf/pacman.conf"))
+        .expect("unable to parse config");
     let dbs = parser.sync_dbs();
     assert_eq!(dbs, &expect_sync_dbs, "sync dbs mismatch");
 
