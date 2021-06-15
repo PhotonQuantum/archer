@@ -169,3 +169,10 @@ async fn must_unshare() {
         "unshare mismatch"
     );
 }
+
+#[tokio::test]
+async fn must_lock() {
+    let (_working_dir, builder) = setup_nspawn_builder();
+    builder.lock_workdir().await.expect("unable to lock dir");
+    builder.unlock_workdir().await
+}

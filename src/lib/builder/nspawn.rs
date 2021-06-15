@@ -95,7 +95,7 @@ impl NspawnBuilder {
             .unwrap_or(false)
     }
 
-    async fn lock_workdir(&self) -> Result<()> {
+    pub(crate) async fn lock_workdir(&self) -> Result<()> {
         tokio::fs::create_dir_all(&self.options.working_dir).await?;
 
         let mut lock_file = FileLock::create(self.options.working_dir.join(".lock"))
@@ -110,7 +110,7 @@ impl NspawnBuilder {
         Ok(())
     }
 
-    async fn unlock_workdir(&self) {
+    pub(crate) async fn unlock_workdir(&self) {
         let mut maybe_lock_file = self.workdir_lock.lock().await;
         if let Some(lock_file) = maybe_lock_file.deref_mut() {
             lock_file.unlock();
