@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -5,6 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use fs3::FileExt;
+use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt;
 
 use crate::consts::*;
@@ -118,6 +120,50 @@ impl NspawnBuilder {
         Ok(())
     }
 
+    async fn sudo_cp(
+        &self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+        recursive: bool,
+    ) -> Result<()> {
+        let mut cmd = tokio::process::Command::new("sudo");
+        cmd.arg("cp");
+        if recursive {
+            cmd.arg("-R");
+        }
+        cmd.arg(from.as_ref()).arg(to.as_ref());
+        self.set_stdout(&mut cmd);
+
+        if cmd.spawn()?.wait().await?.success() {
+            Ok(())
+        } else {
+            Err(CommandError::Cp.into())
+        }
+    }
+
+    async fn make_arch_root(&self) -> Result<()> {
+        let pacman_conf = self.pacman_conf();
+        let makepkg_conf = self.makepkg_conf();
+        let cache_dir = pacman_conf.option("CacheDir").unwrap();
+        let working_dir = &self.options.working_dir;
+
+        let mut mkarchroot_cmd = tokio::process::Command::new("mkarchroot");
+        mkarchroot_cmd
+            .arg("-C")
+            .arg(pacman_conf.path())
+            .arg("-M")
+            .arg(makepkg_conf)
+            .args(&["-c", cache_dir])
+            .arg(working_dir)
+            .arg("base-devel");
+        self.set_stdout(&mut mkarchroot_cmd);
+        if !mkarchroot_cmd.spawn()?.wait().await?.success() {
+            return Err(CommandError::MkArchRoot.into());
+        }
+
+        Ok(())
+    }
+
     async fn copy_hostconf(&self) -> Result<()> {
         let working_dir = &self.options.working_dir;
         let pacman_conf = self.pacman_conf();
@@ -125,14 +171,12 @@ impl NspawnBuilder {
 
         let src_gpg_dir = PathBuf::from(pacman_conf.option("GPGDir").unwrap());
         let dest_gpg_dir = working_dir.join("etc/pacman.d/gnupg");
-        tokio::fs::create_dir_all(&dest_gpg_dir).await?;
 
-        let mut gpg_cmd = if Self::test_unshare().await {
-            let mut cmd = tokio::process::Command::new("sudo");
-            cmd.args(&["unshare", "--fork", "--pid", "gpg"]);
-            cmd
+        let mut gpg_cmd = tokio::process::Command::new("sudo");
+        if Self::test_unshare().await {
+            gpg_cmd.args(&["unshare", "--fork", "--pid", "gpg"]);
         } else {
-            tokio::process::Command::new("gpg")
+            gpg_cmd.args(&["gpg"]);
         };
         gpg_cmd
             .arg("--homedir")
@@ -160,30 +204,35 @@ impl NspawnBuilder {
         let dest_mirror_list = working_dir.join("etc/pacman.d/mirrorlist");
         let dest_pac_conf = working_dir.join("etc/pacman.conf");
         let dest_makepkg_conf = working_dir.join("etc/makepkg.conf");
-        tokio::fs::create_dir_all(dest_mirror_list.parent().unwrap()).await?;
-        tokio::fs::File::create(&dest_mirror_list)
-            .await?
-            .write_all(pacman_conf.mirror_list().as_ref())
+        {
+            let mut temp_mirror_list = NamedTempFile::new()?;
+            temp_mirror_list.write_all(pacman_conf.mirror_list().as_ref())?;
+            self.sudo_cp(temp_mirror_list.path(), &dest_mirror_list, false)
+                .await?;
+        }
+        self.sudo_cp(pacman_conf.path(), &dest_pac_conf, false)
             .await?;
-        tokio::fs::copy(pacman_conf.path(), &dest_pac_conf).await?;
-        tokio::fs::copy(&makepkg_conf, &dest_makepkg_conf).await?;
+        self.sudo_cp(&makepkg_conf, &dest_makepkg_conf, false)
+            .await?;
 
         // TODO files
 
         // TODO sed cachedir
 
-        todo!()
+        Ok(())
     }
 }
 
 #[async_trait]
 impl Builder for NspawnBuilder {
     async fn setup(&self) -> Result<()> {
-        // TODO mkarchroot, makechrootpkg
+        self.make_arch_root().await?;
 
         self.copy_hostconf().await?;
 
-        todo!()
+        // TODO mkchrootpkg
+
+        Ok(())
     }
 
     async fn teardown(&self) -> Result<()> {

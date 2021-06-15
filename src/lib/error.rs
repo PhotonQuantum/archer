@@ -62,6 +62,10 @@ pub enum CommandError {
     Gpg(GpgError),
     #[error("pacman-key")]
     PacmanKey,
+    #[error("mkarchroot")]
+    MkArchRoot,
+    #[error("cp")]
+    Cp,
 }
 
 #[derive(Debug, Error)]

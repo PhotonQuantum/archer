@@ -21,7 +21,10 @@ fn setup_bare_builder() -> BareBuilder {
 
 fn setup_nspawn_builder() -> (TempDir, NspawnBuilder) {
     let working_dir = tempdir().expect("unable to create working dir");
-    let options = NspawnBuildOptions::new(&BuildOptions::new().verbose(true), working_dir.path());
+    let options = NspawnBuildOptions::new(
+        &BuildOptions::new().verbose(true),
+        working_dir.path().join("working_dir"),
+    );
     (working_dir, NspawnBuilder::new(&options))
 }
 
@@ -148,13 +151,13 @@ async fn must_nspawn_setup(builder: &NspawnBuilder) {
     builder.setup().await.expect("unable to setup");
 }
 
-#[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 6)]
 async fn must_nspawn_build() {
-    if option_env!("NO_SUDO").is_some() {
+    if option_env!("NO_SUDO").is_some() || option_env!("NO_CONTAINER").is_some() {
         println!("must_bare_build skipped");
         return;
     }
+    wait_pacman_lock();
     let (_working_dir, builder) = setup_nspawn_builder();
     must_nspawn_setup(&builder).await;
 }
@@ -167,7 +170,7 @@ async fn must_unshare() {
     }
     assert_eq!(
         NspawnBuilder::test_unshare().await,
-        option_env!("NO_UNSHARE").is_none(),
+        option_env!("NO_CONTAINER").is_none(),
         "unshare mismatch"
     );
 }
