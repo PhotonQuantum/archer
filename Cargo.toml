@@ -57,7 +57,7 @@ rust-ini = "0.17"
 fs3 = "0.5"
 
 [dev-dependencies]
-rstest = "0.9"
+rstest = "0.10"
 testcontainers = "0.12"
 rand = "0.8"
 fs_extra = "1.2"
