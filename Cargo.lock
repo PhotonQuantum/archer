@@ -115,9 +115,9 @@ dependencies = [
 
 [[package]]
 name = "archlinux-repo-parser"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4243efb92fe6df7a80d26b3e40ae15dcaeed8bd9cea7cf57ee3cfe2b094137"
+checksum = "7ecb7703b4282c1460126edbe408c37f56169417deff9fbf57db3929d6b2ac3b"
 dependencies = [
  "serde",
 ]
