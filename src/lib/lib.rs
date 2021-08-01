@@ -8,10 +8,8 @@
 #![feature(bool_to_option)]
 #![feature(never_type)]
 #![feature(hash_drain_filter)]
-#![feature(bound_cloned)]
 #![feature(box_syntax)]
 #![feature(destructuring_assignment)]
-#![feature(capture_disjoint_fields)]
 
 pub use utils::load_alpm;
 

@@ -1,8 +1,10 @@
+cargo-features = ["edition2021"]
+
 [package]
 name = "archer"
 version = "0.1.0"
 authors = ["PhotonQuantum <self@lightquantum.me>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "archer_lib"
