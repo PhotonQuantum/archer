@@ -80,15 +80,15 @@ impl Txn {
         while let Some(action) = self.seq.pop_front() {
             match action {
                 TxnAction::Assertion(_, _) => {
-                    Txn::join_commit(&mut staging, target).await?;
+                    Self::join_commit(&mut staging, target).await?;
                     action.execute(target).await?;
                 }
-                TxnAction::Barrier => Txn::join_commit(&mut staging, target).await?,
+                TxnAction::Barrier => Self::join_commit(&mut staging, target).await?,
                 _ => staging.push(action),
             }
         }
         if !staging.is_empty() {
-            Txn::join_commit(&mut staging, target).await?;
+            Self::join_commit(&mut staging, target).await?;
         }
         Ok(())
     }

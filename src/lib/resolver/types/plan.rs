@@ -15,9 +15,9 @@ pub enum PlanAction {
 impl Display for PlanAction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PlanAction::Install(pkg) => write!(f, "Install({})", pkg.to_string()),
-            PlanAction::Build(pkg) => write!(f, "Build({})", pkg.to_string()),
-            PlanAction::CopyToDest(pkg) => write!(f, "CopyToDest({})", pkg.to_string()),
+            PlanAction::Install(pkg) => write!(f, "Install({})", pkg),
+            PlanAction::Build(pkg) => write!(f, "Build({})", pkg),
+            PlanAction::CopyToDest(pkg) => write!(f, "CopyToDest({})", pkg),
             PlanAction::InstallGroup(pkgs) => write!(
                 f,
                 "InstallGroup({})",

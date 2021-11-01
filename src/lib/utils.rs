@@ -68,7 +68,7 @@ pub const fn map_gpg_code(status_code: i32) -> Option<GpgError> {
 #[macro_export]
 macro_rules! setter_copy {
     ($name: ident, $tyty: ty) => {
-        pub fn $name(mut self, $name: $tyty) -> Self {
+        pub const fn $name(mut self, $name: $tyty) -> Self {
             self.$name = $name;
             self
         }

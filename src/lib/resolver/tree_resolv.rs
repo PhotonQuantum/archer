@@ -253,12 +253,8 @@ impl TreeResolver {
             });
 
         // exclude already satisfied deps
-        let (base_ctx, maybe_cycle) = TreeResolver::exclude_satisfied_deps(
-            &mut map_dep_parents,
-            base_ctx,
-            &partial_solution,
-            None,
-        );
+        let (base_ctx, maybe_cycle) =
+            Self::exclude_satisfied_deps(&mut map_dep_parents, base_ctx, &partial_solution, None);
 
         // the dep set itself conflicts with current solution, abort
         if map_dep_parents
@@ -271,12 +267,8 @@ impl TreeResolver {
         }
 
         // maybe a dep of candidates is fulfilled by another candidate
-        let (base_ctx, maybe_cycle) = TreeResolver::exclude_satisfied_deps(
-            &mut map_dep_parents,
-            base_ctx,
-            candidates,
-            maybe_cycle,
-        );
+        let (base_ctx, maybe_cycle) =
+            Self::exclude_satisfied_deps(&mut map_dep_parents, base_ctx, candidates, maybe_cycle);
 
         // no new deps needed
         if map_dep_parents.is_empty() {

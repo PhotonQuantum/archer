@@ -109,18 +109,21 @@ impl Builder for BareBuilder {
 
     async fn build(&self, path: &Path) -> Result<Vec<PathBuf>> {
         let output_dir = path.join("output");
-        let mut cmd = if let Some(user) = &self.options.build_as {
-            let mut cmd = Command::new("sudo");
-            cmd.arg("-u");
-            cmd.arg(user);
-            cmd.arg(format!("PKGDEST={}", output_dir.to_str().unwrap()));
-            cmd.arg("makepkg");
-            cmd
-        } else {
-            let mut cmd = Command::new("makepkg");
-            cmd.env("PKGDEST", &output_dir);
-            cmd
-        };
+        let mut cmd = self.options.build_as.as_ref().map_or_else(
+            || {
+                let mut cmd = Command::new("makepkg");
+                cmd.env("PKGDEST", &output_dir);
+                cmd
+            },
+            |user| {
+                let mut cmd = Command::new("sudo");
+                cmd.arg("-u");
+                cmd.arg(user);
+                cmd.arg(format!("PKGDEST={}", output_dir.to_str().unwrap()));
+                cmd.arg("makepkg");
+                cmd
+            },
+        );
 
         if !output_dir.exists() {
             tokio::fs::create_dir(&output_dir).await?;
@@ -172,8 +175,8 @@ impl Builder for BareBuilder {
                 .arg("-R")
                 .arg(format!(
                     "{}:{}",
-                    users::get_current_uid().to_string(),
-                    users::get_current_gid().to_string()
+                    users::get_current_uid(),
+                    users::get_current_gid()
                 ))
                 .arg(&output_dir)
                 .spawn()?

@@ -58,7 +58,7 @@ fn demo_deps() -> Result<()> {
         solution
             .strongly_connected_components()
             .into_iter()
-            .map(|pkgs| format!("[{}]", pkgs.iter().map(|pkg| pkg.to_string()).join(", ")))
+            .map(|pkgs| format!("[{}]", pkgs.iter().map(ToString::to_string).join(", ")))
             .join(", ")
     );
     let mut f = File::create("output.dot")?;

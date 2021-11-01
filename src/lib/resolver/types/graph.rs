@@ -126,11 +126,7 @@ impl<T: Hash + Eq + Clone + Display> SCCGraph<T> {
     pub fn dot(&self) -> String {
         let mut output = String::from("digraph {\n");
         for (idx, data) in self.proj_rev.iter().enumerate() {
-            output.push_str(&*format!(
-                "    {} [ label = \"{}\" ]\n",
-                idx,
-                data.to_string()
-            ));
+            output.push_str(&*format!("    {} [ label = \"{}\" ]\n", idx, data));
         }
         for (i, j) in self.base.edges() {
             output.push_str(&*format!("    {} -> {} [ ]\n", i, j));

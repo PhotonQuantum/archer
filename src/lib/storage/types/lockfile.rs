@@ -15,7 +15,7 @@ pub struct LockFile {
 }
 
 impl Default for LockFile {
-    fn default() -> LockFile {
+    fn default() -> Self {
         Self {
             version: LOCK_FILE_VERSION,
             timestamp: unix_timestamp(),
@@ -25,7 +25,7 @@ impl Default for LockFile {
 }
 
 impl LockFile {
-    pub fn new() -> LockFile {
+    pub fn new() -> Self {
         Default::default()
     }
 }

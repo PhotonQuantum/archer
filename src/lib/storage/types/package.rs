@@ -25,7 +25,7 @@ impl AsRef<PackageMeta> for &PackageMeta {
 
 impl PackageMeta {
     pub fn new(name: &str, version: &Version, checksum: u64) -> Self {
-        PackageMeta {
+        Self {
             name: name.to_string(),
             version: version.clone(),
             checksum,

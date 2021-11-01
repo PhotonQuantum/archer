@@ -148,13 +148,12 @@ impl PacmanConf {
 
         let ini =
             Ini::load_from_str(raw_conf).map_err(|e| ParseError::PacmanError(e.to_string()))?;
-        let sync_dbs = PacmanConf::parse_sync_dbs(&ini);
+        let sync_dbs = Self::parse_sync_dbs(&ini);
 
-        let path = if let Some(path) = &ctx.path {
-            path.clone()
-        } else {
-            PathBuf::from(PACMAN_CONF_PATH)
-        };
+        let path = ctx
+            .path
+            .as_ref()
+            .map_or_else(|| PathBuf::from(PACMAN_CONF_PATH), |path| path.clone());
 
         Ok(Self {
             inner: ini,

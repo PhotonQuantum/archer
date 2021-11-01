@@ -106,12 +106,12 @@ impl Clone for ByteStream {
     // the cloned bytestream will have its pointer rewound
     fn clone(&self) -> Self {
         match self {
-            ByteStream::Memory(v) => ByteStream::Memory(Cursor::new(v.clone().into_inner())), // TODO use custom cursor to avoid this clone
+            ByteStream::Memory(v) => Self::Memory(Cursor::new(v.clone().into_inner())), // TODO use custom cursor to avoid this clone
             ByteStream::File {
                 object_type: FileObject::NamedTemp(temp_file),
                 length,
                 ..
-            } => ByteStream::File {
+            } => Self::File {
                 handle: tokio::fs::File::from_std(temp_file.reopen().unwrap()),
                 object_type: FileObject::NamedTemp(temp_file.clone()),
                 length: *length,
@@ -123,7 +123,7 @@ impl Clone for ByteStream {
                 let mut src = std::fs::File::open(file_path).unwrap();
                 let mut new_file = NamedTempFile::new().unwrap();
                 std::io::copy(&mut src, &mut new_file).unwrap();
-                ByteStream::try_from(new_file).unwrap()
+                Self::try_from(new_file).unwrap()
             }
             ByteStream::File {
                 object_type: FileObject::Unnamed,
