@@ -45,7 +45,7 @@ derive_builder = "0.10"
 md5 = "0.7"
 sha2 = "0.9"
 async-trait = "0.1"
-tokio = {version="1.13", features=["full"]}
+tokio = {version="1.14", features=["full"]}
 tempfile = "3.2"
 rusoto_core = "0.47"
 rusoto_s3 = "0.47"
