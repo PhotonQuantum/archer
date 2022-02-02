@@ -1,5 +1,4 @@
 #![feature(box_syntax)]
-#![deny(clippy::all)]
 
 use std::fs::File;
 use std::io::Write;

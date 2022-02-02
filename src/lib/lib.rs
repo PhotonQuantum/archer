@@ -1,4 +1,3 @@
-#![deny(clippy::all)]
 #![allow(
     clippy::module_name_repetitions,
     clippy::wildcard_imports,

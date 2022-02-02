@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/PhotonQuantum/archer/actions/workflows/test.yml/badge.svg)](https://github.com/PhotonQuantum/archer/actions/workflows/test.yml)
 
-> This project is at a very early stage.
+> This project is suspended because I no longer actively use ArchLinux anymore.
 
 ## Current Progress
 
